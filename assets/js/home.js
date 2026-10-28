@@ -115,7 +115,6 @@
   const PLAN_OUT = [0.485, 0.5], ELEV_IN = [0.632, 0.652];
   const PAPER_OUT = [0.47, 0.52], DARK_IN = [0.6, 0.67];
   const LINES_IN = [0.885, 0.93], LABELS_IN = [0.91, 0.95];
-  const DARK_AT = 0.57;
   const BEAT_IN = 0.035, BEAT_OUT = 0.03, PART_STAGGER = 0.01, PART_RISE = 16;
 
   // Frames arrive as encoded blobs (~7 MB for the whole wide set). Only a small window around the
@@ -229,7 +228,7 @@
     scrollToY(scene.offsetTop + +b.dataset.goto * (scene.offsetHeight - innerHeight));
   }));
 
-  let sceneP = -1, sceneDark = false;
+  let sceneP = -1;
   function updateScene(dt) {
     const r = scene.getBoundingClientRect(), vh = innerHeight;
     if (r.bottom < 0 || r.top > vh) return;
@@ -246,8 +245,6 @@
     setStyle(elevLayer, 'opacity', String(smooth(ELEV_IN[0], ELEV_IN[1], p)));
     setStyle(planVeil, 'opacity', (1 - smooth(PAPER_OUT[0], PAPER_OUT[1], p)).toFixed(3));
     pin.style.setProperty('--veil', smooth(DARK_IN[0], DARK_IN[1], p).toFixed(3));
-    sceneDark = p >= DARK_AT;
-    pin.dataset.tone = sceneDark ? 'dark' : 'light';
 
     for (const bt of beats) {
       if (bt.hero) {
@@ -371,7 +368,7 @@
     const y = scrollY, pinnedUntil = scene.offsetTop + scene.offsetHeight - innerHeight;
     if (MOTION ? y < pinnedUntil + 4 : y < 8) {   // the static layout scrolls like any other section
       head.classList.remove('is-solid', 'is-paper', 'is-hidden');
-      head.dataset.on = sceneDark ? 'dark' : 'light';
+      head.dataset.on = 'dark';   // the whole scene carries cream copy on shade
     } else {
       head.classList.add('is-solid');
       head.dataset.on = '';
