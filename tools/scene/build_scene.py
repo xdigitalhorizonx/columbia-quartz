@@ -600,7 +600,6 @@ lemon_src.select_set(False)
 ext = [max(v.co[i] for v in lemon_src.data.vertices) - min(v.co[i] for v in lemon_src.data.vertices) for i in range(3)]
 s0 = 0.08 / max(ext)                                     # an 80 mm lemon
 lemon_src.scale = (s0, s0, s0)
-print('LEMON_SCALE', [round(e, 4) for e in ext], tuple(round(x, 4) for x in lemon_src.scale), tuple(round(x, 4) for x in lemon_src.dimensions))
 for slot in lemon_src.material_slots:
     m = slot.material; nodes, links = m.node_tree.nodes, m.node_tree.links; p = principled(nodes)
     if p.inputs['Base Color'].links:
@@ -609,7 +608,12 @@ for slot in lemon_src.material_slots:
         hs.inputs['Value'].default_value = 2.0
         links.new(p.inputs['Base Color'].links[0].from_socket, hs.inputs['Color'])
         links.new(hs.outputs['Color'], p.inputs['Base Color'])
-    p.inputs['Coat Weight'].default_value = 0.25; p.inputs['Coat Roughness'].default_value = 0.3
+    # a soft waxy sheen: with a glossy coat every pore caught the window and the peel read as sugared
+    if p.inputs['Roughness'].links:
+        links.new(map_range(nodes, links, p.inputs['Roughness'].links[0].from_socket, 0.42, 0.7), p.inputs['Roughness'])
+    for n in nodes:
+        if n.type == 'NORMAL_MAP': n.inputs['Strength'].default_value = 0.45
+    p.inputs['Specular IOR Level'].default_value = 0.4
 lemons = [lemon_src]
 for i in range(1, 8):
     l = lemon_src.copy(); l.name = f'Lemon {i}'; link(l); lemons.append(l)
@@ -720,7 +724,7 @@ for ti, ctrl in enumerate(TWIGS):
         for side in (-1, 1):
             spread = math.radians(rng.uniform(26, 50))
             ld = d * math.cos(spread) + axis * side * math.sin(spread)
-            ld.z -= rng.uniform(0.0, 0.22)          # leaves droop a little under their own weight
+            ld.z -= rng.uniform(0.05, 0.32)         # leaves droop a little under their own weight
             olive_leaf(p, ld, 0.85 if k > n - 8 else 1.0)
         node += 1
         k += rng.choice((3, 4, 5))
