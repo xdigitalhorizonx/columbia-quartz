@@ -5,9 +5,10 @@ Premium quartz surfaces marketing homepage. Static site: `index.html` plus local
 ## The hero
 
 Scrolling turns the camera from a top-down plan view of a Calacatta LX Gold island to a
-counter-height profile of its mitred edge. The imagery is photographic (AI-generated stills and
-an image-to-video camera move, cut into 72 WebP frames), drawn to a canvas as you scroll. Most of
-the scroll holds on the two 4K stills; the move between them is short.
+counter-height profile of its mitred edge. The imagery is a 3D render (Blender, Cycles) of the real
+LX Gold slab, 120 WebP frames drawn to a canvas as you scroll, so the veining and the leaves never
+change between frames. The camera moves for most of the scroll; 4K stills of the first and last
+frame stand in at either end.
 How it was made and how to rebuild it: [`tools/scene/README.md`](tools/scene/README.md).
 
 ## Motion

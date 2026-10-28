@@ -1,61 +1,53 @@
-# Export the homepage scene: scroll frames (wide + tall crops) and the two 4K endpoint stills.
-# usage: python tools/scene/export_frames.py <source-dir> assets/scene [frame-count]
-#   <source-dir> holds raw/ (every clip frame as PNG, from ffmpeg) and stills/plan-master-5504.png,
-#   stills/elevation-master-5504.png. See tools/scene/README.md.
-# Frames are picked by camera motion, not by time: the clip's slow start and end (where the camera
-# barely moves and the generated veining drifts most visibly) get few frames, the move itself gets many,
-# so a linear scroll through the frames reads as one steady camera move.
+# Export the rendered camera move and its two endpoint stills to the homepage's WebP sets.
+# usage: python tools/scene/export_frames.py <renders-dir> assets/scene     (needs Pillow + numpy)
+#   <renders-dir>/wide/NNN.png    the move, 16:9 (1920x1080)        -> assets/scene/d/NNN.webp
+#   <renders-dir>/tall/NNN.png    the move, 9:16 (720x1280)         -> assets/scene/m/NNN.webp
+#   <renders-dir>/stills/wide/000.png, 001.png  plan + elevation, 3840x2160 -> plan-/elevation-{3840,2560,1600}.webp
+#   <renders-dir>/stills/tall/000.png, 001.png  plan + elevation, 1440x2560 -> *-portrait-{2400,1800,1200}.webp
+# Every image gets the same gentle lens vignette, so a still and the frame it stands in for match exactly.
 import os, sys
-import cv2, numpy as np
-from PIL import Image, ImageFilter
+import numpy as np
+from PIL import Image
+
 SRC, OUT = sys.argv[1], sys.argv[2]
-COUNT = int(sys.argv[3]) if len(sys.argv) > 3 else 72
-raw = os.path.join(SRC, 'raw')
-files = sorted(f for f in os.listdir(raw) if f.endswith('.png'))
 
-# camera motion per frame: median optical-flow magnitude between neighbours, at 480 px wide
-def small(f):
-    im = cv2.imread(os.path.join(raw, f))
-    return cv2.cvtColor(cv2.resize(im, (480, 270), interpolation=cv2.INTER_AREA), cv2.COLOR_BGR2GRAY)
-motion, prev = [0.0], small(files[0])
-for f in files[1:]:
-    g = small(f)
-    flow = cv2.calcOpticalFlowFarneback(prev, g, None, 0.5, 4, 21, 5, 7, 1.5, 0)
-    motion.append(float(np.median(np.linalg.norm(flow, axis=2)))); prev = g
-cum = np.cumsum(motion); cum /= cum[-1]
-picks = [int(np.argmin(np.abs(cum - k / (COUNT - 1)))) for k in range(COUNT)]
-picks[0], picks[-1] = 0, len(files) - 1
-for k in range(1, COUNT):                       # keep picks strictly increasing
-    picks[k] = max(picks[k], picks[k - 1] + 1)
+def vignette(im, amount=0.16):
+    a = np.asarray(im).astype(np.float32) / 255.0
+    h, w = a.shape[:2]
+    y, x = np.mgrid[0:h, 0:w].astype(np.float32)
+    d = np.hypot((x - w / 2) / (w / 2), (y - h / 2) / (h / 2)) / np.sqrt(2)   # 0 centre .. 1 corner
+    lin = np.where(a <= 0.04045, a / 12.92, ((a + 0.055) / 1.055) ** 2.4)     # darken in linear light
+    lin *= (1 - amount * d ** 2.4)[..., None]
+    a = np.where(lin <= 0.0031308, lin * 12.92, 1.055 * lin ** (1 / 2.4) - 0.055)
+    return Image.fromarray((np.clip(a, 0, 1) * 255 + 0.5).astype(np.uint8))
 
-# portrait crop centre (fraction of frame width) vs clip time, read off the frames by eye
-KEYS = [(0.0, 0.68), (0.37, 0.70), (0.54, 0.62), (0.70, 0.50), (0.85, 0.42), (1.0, 0.38)]
-def focal(t):
-    for (t0, a), (t1, b) in zip(KEYS, KEYS[1:]):
-        if t <= t1: return a + (b - a) * (t - t0) / (t1 - t0)
-    return KEYS[-1][1]
-CW = 1 / 3  # portrait crop width as a fraction of frame width (640 of 1920)
-def crop_box(w, h, c):
-    cw = round(w * CW); x = round(min(max(c * w - cw / 2, 0), w - cw)); return (x, 0, x + cw, h)
-sharp = ImageFilter.UnsharpMask(radius=1.1, percent=45, threshold=2)
-for d in ('d', 'm'): os.makedirs(os.path.join(OUT, d), exist_ok=True)
-tot = {'d': 0, 'm': 0}
-for i, fi in enumerate(picks):
-    im = Image.open(os.path.join(raw, files[fi])).convert('RGB').filter(sharp)
-    t = fi / (len(files) - 1)
-    pd = os.path.join(OUT, 'd', f'{i:03d}.webp'); im.save(pd, 'WEBP', quality=88, method=6)
-    pm = os.path.join(OUT, 'm', f'{i:03d}.webp'); im.crop(crop_box(*im.size, focal(t))).save(pm, 'WEBP', quality=86, method=6)
-    tot['d'] += os.path.getsize(pd); tot['m'] += os.path.getsize(pm)
-# endpoint stills from the 4K masters. High quality on purpose: at q80 WebP smooths away about
-# half of the stone's fine grain, which reads as blur on large and high-density screens.
-for name, src, t in (('plan', 'plan-master-5504.png', 0.0), ('elevation', 'elevation-master-5504.png', 1.0)):
-    im = Image.open(os.path.join(SRC, 'stills', src)).convert('RGB')
-    for w, q in ((3840, 90), (2560, 93), (1600, 92)):
-        x = im.resize((w, round(w * im.height / im.width)), Image.LANCZOS)
-        x.save(os.path.join(OUT, f'{name}-{w}.webp'), 'WEBP', quality=q, method=6)
-    pc = im.crop(crop_box(*im.size, focal(t)))
-    for h, q in ((2400, 90), (1800, 92), (1200, 92)):
-        x = pc.resize((round(h * pc.width / pc.height), h), Image.LANCZOS)
-        x.save(os.path.join(OUT, f'{name}-portrait-{h}.webp'), 'WEBP', quality=q, method=6)
-print({'frames': COUNT, 'raw_picks': picks[:6] + ['...'] + picks[-4:],
-       'desktop_MB': round(tot['d'] / 1e6, 2), 'mobile_MB': round(tot['m'] / 1e6, 2)})
+def load(path):
+    return vignette(Image.open(path).convert('RGB'))
+
+tot = {}
+for kind, d, q in (('wide', 'd', 84), ('tall', 'm', 82)):
+    src = os.path.join(SRC, kind)
+    files = sorted(f for f in os.listdir(src) if f.endswith('.png'))
+    os.makedirs(os.path.join(OUT, d), exist_ok=True)
+    for old in os.listdir(os.path.join(OUT, d)):
+        if old.endswith('.webp'): os.remove(os.path.join(OUT, d, old))
+    tot[d] = 0
+    for i, f in enumerate(files):
+        p = os.path.join(OUT, d, f'{i:03d}.webp')
+        load(os.path.join(src, f)).save(p, 'WEBP', quality=q, method=6)
+        tot[d] += os.path.getsize(p)
+    tot[d + '_frames'] = len(files)
+
+# endpoint stills. High quality on purpose: at q80 WebP smooths away the stone's fine grain,
+# which reads as blur on large and high-density screens.
+for kind, sizes in (('wide', ((3840, 90), (2560, 92), (1600, 92))), ('tall', ((2400, 90), (1800, 92), (1200, 92)))):
+    for name, f in (('plan', '000.png'), ('elevation', '001.png')):
+        im = load(os.path.join(SRC, 'stills', kind, f))
+        for size, q in sizes:
+            if kind == 'wide':
+                x = im.resize((size, round(size * im.height / im.width)), Image.LANCZOS)
+                x.save(os.path.join(OUT, f'{name}-{size}.webp'), 'WEBP', quality=q, method=6)
+            else:
+                x = im.resize((round(size * im.width / im.height), size), Image.LANCZOS)
+                x.save(os.path.join(OUT, f'{name}-portrait-{size}.webp'), 'WEBP', quality=q, method=6)
+print({k: (round(v / 1e6, 2) if not k.endswith('frames') else v) for k, v in tot.items()})

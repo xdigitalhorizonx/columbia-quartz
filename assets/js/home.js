@@ -108,20 +108,21 @@
     parts: [...el.querySelectorAll('[data-part]')], hero: el.classList.contains('beat--hero'),
   }));
 
-  // Choreography (scene progress 0..1). Most of the scroll holds on the two sharp 4K stills (hero and
-  // beats 1-2 on the plan view, beat 3 and the finale on the elevation); the camera move between them
-  // is short and quick, CAM_A..CAM_B, so the generated clip is only on screen while it is moving.
-  const CAM_A = 0.5, CAM_B = 0.64;
-  const PLAN_OUT = [0.485, 0.5], ELEV_IN = [0.632, 0.652];
-  const PAPER_OUT = [0.47, 0.52], DARK_IN = [0.6, 0.67];
-  const LINES_IN = [0.885, 0.93], LABELS_IN = [0.91, 0.95];
+  // Choreography (scene progress 0..1). The frames are a 3D render, so the stone and the leaves are the
+  // same in every frame and the camera can move for most of the scroll, CAM_A..CAM_B: it leaves plan view
+  // as beat 1 arrives and settles at counter height for beat 3. The sharp 4K stills (identical to the
+  // first and last frame) stand in at either end.
+  const CAM_A = 0.09, CAM_B = 0.84;
+  const PLAN_OUT = [0.08, 0.095], ELEV_IN = [0.84, 0.86];
+  const PAPER_OUT = [0.5, 0.6], DARK_IN = [0.6, 0.68];
+  const LINES_IN = [0.865, 0.91], LABELS_IN = [0.89, 0.93];
   const BEAT_IN = 0.035, BEAT_OUT = 0.03, PART_STAGGER = 0.01, PART_RISE = 16;
 
   // Frames arrive as encoded blobs (~7 MB for the whole wide set). Only a small window around the
   // playhead is decoded, off the main thread, into canvas-sized ImageBitmaps, so a draw is a plain blit.
   const N = +canvas.dataset.frames;
   const SRC = { wide: canvas.dataset.sizeWide.split('x').map(Number), tall: canvas.dataset.sizeTall.split('x').map(Number) };
-  const WINDOW = 7, MAX_DECODES = 1;   // one decode at a time: parallel decodes hitch the main thread on the short, fast move
+  const WINDOW = 7, MAX_DECODES = 1;   // one decode at a time: parallel decodes hitch the main thread on a fast scroll
   const SAVE_DATA = !!(navigator.connection && navigator.connection.saveData);   // keep the two stills, skip the sequence
   let tall = isTall();
   let blobs = [], bitmaps = new Map(), decoding = new Set(), loadGen = 0, bmpGen = 0, loadingStarted = false;
@@ -183,23 +184,22 @@
     lastDrawn = j; needsDraw = false; canvasReady = true;
   }
 
-  /* annotation callouts, placed in elevation-image coordinates (fractions of the 16:9 master) */
+  /* annotation callouts, in fractions of the last frame (16:9 wide, 9:16 tall); render_move.py --notes
+     projects the front edge into that frame, so these sit exactly on the rendered edge */
   const notesEl = scene.querySelector('[data-notes]');
   const notesSvg = notesEl.querySelector('svg');
   const noteLabels = Object.fromEntries([...notesEl.querySelectorAll('[data-note]')].map((n) => [n.dataset.note, n]));
-  const TALL_CROP = { c: 0.38, w: 1 / 3 };   // the portrait stills/frames are this crop of the master
   const NOTES = {
-    wide: { thickness: { x: 0.12, y0: 0.597, y1: 0.718 }, vein: { x: 0.445, y: 0.606, ex: 0.5, ey: 0.535 } },
-    tall: { thickness: { x: 0.3, y0: 0.597, y1: 0.718 }, vein: null },
+    wide: { aspect: 16 / 9, thickness: { x: 0.12, y0: 0.597, y1: 0.718 }, vein: { x: 0.445, y: 0.606, ex: 0.5, ey: 0.535 } },
+    tall: { aspect: 9 / 16, thickness: { x: 0.3, y0: 0.597, y1: 0.718 }, vein: null },
   };
   let notePaths = [];
   function layoutNotes() {
     const W = pin.clientWidth, H = pin.clientHeight;
-    const aspect = tall ? (5504 * TALL_CROP.w) / 3072 : 5504 / 3072;
-    const dw = W / H > aspect ? W : H * aspect, dh = dw / aspect;
-    const ox = (W - dw) / 2, oy = (H - dh) / 2;
-    const P = (x, y) => [ox + (tall ? (x - TALL_CROP.c + TALL_CROP.w / 2) / TALL_CROP.w : x) * dw, oy + y * dh];
     const cfg = tall ? NOTES.tall : NOTES.wide;
+    const dw = W / H > cfg.aspect ? W : H * cfg.aspect, dh = dw / cfg.aspect;
+    const ox = (W - dw) / 2, oy = (H - dh) / 2;
+    const P = (x, y) => [ox + x * dw, oy + y * dh];
     let svg = '';
     const t = cfg.thickness, [tx, ty0] = P(t.x, t.y0), [, ty1] = P(t.x, t.y1);
     svg += `<path d="M${tx - 6} ${ty0}H${tx + 6}M${tx} ${ty0}V${ty1}M${tx - 6} ${ty1}H${tx + 6}"/>`;
@@ -265,9 +265,8 @@
       bt.el.inert = any < 0.02;
     }
 
-    // the chapter rail steps aside while the camera moves and for the finale
-    const moving = smooth(CAM_A - 0.02, CAM_A + 0.01, p) * (1 - smooth(CAM_B - 0.01, CAM_B + 0.02, p));
-    const uiOp = (1 - moving) * (1 - smooth(0.86, 0.89, p));
+    // the chapter rail steps aside for the finale
+    const uiOp = 1 - smooth(0.86, 0.89, p);
     setStyle(sceneUi, 'opacity', uiOp.toFixed(3));
     sceneUi.inert = uiOp < 0.05;
     rail.style.setProperty('--p', p.toFixed(4));
