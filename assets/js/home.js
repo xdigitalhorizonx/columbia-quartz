@@ -142,7 +142,7 @@
     const pump = () => {
       while (active < 6 && queue.length) {
         const i = queue.shift(); active++;
-        fetch(`${dir}${String(i).padStart(3, '0')}.webp`).then((r) => (r.ok ? r.blob() : null)).then((b) => {
+        fetch(`${dir}${String(i).padStart(3, '0')}.webp?v=${canvas.dataset.rev}`).then((r) => (r.ok ? r.blob() : null)).then((b) => {
           if (gen === loadGen && b) blobs[i] = b;
         }).catch(() => {}).finally(() => { active--; if (gen === loadGen) pump(); });
       }

@@ -41,4 +41,6 @@ python -m http.server 5050
 ## Deploy
 
 Static site on Vercel (no framework, no build command; the repository root is served as-is).
-`vercel.json` adds a 7-day cache to `/assets/`.
+`vercel.json` adds a 7-day cache to `/assets/`, keyed by URL. When you replace a file under the same
+name, bump its `?v=` in `index.html` (for the frame sequence, `data-rev` on the canvas), or returning
+visitors keep the old file for up to a week.
