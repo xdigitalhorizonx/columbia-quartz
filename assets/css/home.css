@@ -115,12 +115,12 @@ em { font-style: italic; }
   transition: transform .7s var(--ease), color .6s, background-color .6s;
 }
 .site-head::before {
-  content: ""; position: absolute; inset: 0; z-index: -1; opacity: 0;
+  content: ""; position: absolute; inset: 0 0 -40px; z-index: -1; opacity: 0;
   background: linear-gradient(180deg, var(--scrim, rgba(10, 9, 7, .62)), rgba(10, 9, 7, 0));
   transition: opacity .6s;
 }
 .site-head[data-on="dark"]::before { opacity: 1; }
-.site-head[data-on="light"]::before { opacity: 1; --scrim: rgba(239, 233, 224, .62); }
+.site-head[data-on="light"]::before { opacity: 1; background: linear-gradient(180deg, rgba(239, 233, 224, .92) 0%, rgba(239, 233, 224, .82) 55%, rgba(239, 233, 224, 0) 100%); }
 .site-head.is-solid { background: rgba(12, 11, 9, .84); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--hair); }
 .site-head.is-solid.is-paper { background: rgba(239, 233, 224, .88); border-bottom-color: var(--hair-ink); }
 .site-head.is-hidden { transform: translateY(-105%); }
@@ -153,19 +153,28 @@ em { font-style: italic; }
 .scene-still, .scene-canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .scene-canvas { display: none; }
 .scene-veil { display: none; }
+/* paper fade over the left of the plan view: the stone dissolves into the page so ink copy never
+   sits on veins, shadows or gold (the hero and beats 1-2 live here) */
+.plan-veil {
+  position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, rgba(239, 233, 224, .95) 0%, rgba(239, 233, 224, .9) 38%, rgba(239, 233, 224, .62) 48%, rgba(239, 233, 224, .22) 58%, rgba(239, 233, 224, 0) 68%);
+  /* stop above the island's front edge (77% down the still, lower on wider screens) so the dark floor stays dark */
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 60%, transparent 75%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 60%, transparent 75%);
+}
 
 /* hero copy sits over the plan view (light stone) in ink */
 .beat--hero {
   position: absolute; top: 0; left: 0; z-index: 3;
   padding: calc(var(--head-h) + clamp(28px, 10vh, 120px)) var(--gutter) 0;
-  width: min(1040px, 72vw);
-  --fg: #17140f; --fg-muted: #5f574b;
+  width: min(760px, 56vw);
+  --fg: #17140f; --fg-muted: #5a5144;
   color: var(--fg);
 }
 .hero-title { font-size: clamp(3.1rem, 6.2vw, 6.2rem); line-height: .98; margin: 22px 0 26px; }
 .hero-title .line { display: block; }
 .hero-title em { color: #8a6a2e; }
-.lede { font-size: clamp(1.05rem, 1.35vw, 1.25rem); font-weight: 400; max-width: 25em; color: #3d362c; }
+.lede { font-size: clamp(1.05rem, 1.35vw, 1.25rem); font-weight: 400; max-width: 24em; color: #352f26; }
 .hero-actions { display: flex; align-items: center; gap: 30px; margin-top: 38px; flex-wrap: wrap; }
 .scroll-cue { display: inline-flex; align-items: center; gap: 14px; font: 700 11px/1 var(--sans); letter-spacing: .24em; text-transform: uppercase; color: var(--fg-muted); }
 .scroll-cue i { position: relative; width: 1px; height: 38px; background: rgba(23, 20, 15, .2); overflow: hidden; }
@@ -223,39 +232,37 @@ html.motion .scene { height: 560vh; }
 html.motion .scene-pin { position: sticky; top: 0; height: 100svh; min-height: 520px; }
 html.motion .scene-layer { position: absolute; inset: 0; height: auto; min-height: 0; }
 html.motion .scene-canvas { display: block; }
+html.motion .plan-veil, html.motion .scene-veil { will-change: opacity; }   /* fade on the compositor; the masked veil never repaints */
 html.motion .scene-layer--elev { opacity: 0; }
 html.motion .scene-layer--elev::after { display: none; }
 html.motion .scene-veil {
   display: block; position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background:
-    linear-gradient(0deg, rgba(10, 9, 7, .78) 0%, rgba(10, 9, 7, .42) 26%, rgba(10, 9, 7, 0) 48%),
-    linear-gradient(180deg, rgba(10, 9, 7, .55) 0%, rgba(10, 9, 7, 0) 22%);
+    linear-gradient(0deg, rgba(10, 9, 7, .86) 0%, rgba(10, 9, 7, .55) 30%, rgba(10, 9, 7, 0) 54%),
+    linear-gradient(90deg, rgba(10, 9, 7, .45) 0%, rgba(10, 9, 7, 0) 45%),
+    linear-gradient(180deg, rgba(10, 9, 7, .6) 0%, rgba(10, 9, 7, 0) 22%);
   opacity: var(--veil, 0);
 }
 html.motion .scene-beats { position: absolute; inset: 0; z-index: 3; padding: 0; background: none; display: block; pointer-events: none; }
-html.motion .beat--story { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: min(640px, 100%); padding: 0 var(--gutter); }
+html.motion .beat--story { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: min(560px, 40vw); padding: 0 var(--gutter); box-sizing: content-box; }
 html.motion .beat--story.beat--low { top: auto; bottom: 0; transform: none; padding-bottom: clamp(40px, 9vh, 96px); }
-html.motion .beat--story:not(.beat--low) { --fg: #17140f; --fg-muted: #4f473c; }
-html.motion .beat--story:not(.beat--low) .beat-title em { color: #8a6a2e; }
+html.motion .beat--story:not(.beat--low) { --fg: #17140f; --fg-muted: #463f34; }
+html.motion .beat--story:not(.beat--low) .beat-title em, html.motion .beat--story:not(.beat--low) .beat-no { color: #8a6a2e; }
 html.motion [data-beat] [data-part], html.motion .beat--hero { will-change: transform, opacity; }
 html.motion .beat--story [data-part], html.motion .beat--final [data-part] { opacity: 0; }
 html.motion .beat a, html.motion .beat button { pointer-events: auto; }
 
 html.motion .scene-ui {
   display: grid; justify-items: end; gap: 16px; position: absolute; right: var(--gutter); bottom: clamp(26px, 5vh, 50px); z-index: 4;
-  color: #ece4d6; text-shadow: 0 1px 12px rgba(0, 0, 0, .35); transition: opacity .5s;
+  color: #ece4d6; text-shadow: 0 1px 14px rgba(0, 0, 0, .55); transition: opacity .5s;
 }
 .scene-ui { display: none; }
-html.motion .hud { display: grid; grid-template-columns: auto auto auto auto; column-gap: 12px; align-items: baseline; font: 700 10.5px/1 var(--sans); letter-spacing: .24em; text-transform: uppercase; }
-.hud-k { opacity: .55; }
-.hud-v { font-variant-numeric: tabular-nums; min-width: 7.2em; }
-.hud-v:last-child { min-width: 2.6em; }
 html.motion .rail { display: flex; gap: 22px; position: relative; padding-top: 14px; }
 .rail-track { position: absolute; left: 0; right: 0; top: 0; height: 1px; background: rgba(236, 228, 214, .28); }
 .rail-fill { position: absolute; inset: 0; background: var(--gold); transform-origin: left; transform: scaleX(var(--p, 0)); }
 .rail button {
-  font: 700 10px/1 var(--sans); letter-spacing: .24em; text-transform: uppercase; color: inherit; text-shadow: inherit;
-  background: none; border: 0; cursor: pointer; opacity: .5; transition: opacity .4s, color .4s; padding: 4px 0;
+  font: 700 11px/1 var(--sans); letter-spacing: .22em; text-transform: uppercase; color: inherit; text-shadow: inherit;
+  background: none; border: 0; cursor: pointer; opacity: .66; transition: opacity .4s, color .4s; padding: 4px 0;
 }
 .rail button.is-on { opacity: 1; color: var(--gold-soft); }
 .rail button:hover, .rail button:focus-visible { opacity: 1; }
@@ -462,21 +469,22 @@ html.paused *, html.paused *::before, html.paused *::after { animation-play-stat
     top: auto; bottom: 0; padding: 0 var(--gutter) clamp(38px, 7vh, 64px);
     --fg: var(--cream); --fg-muted: #d3cabb; color: var(--fg);
   }
-  .beat--hero { width: 100%; }
+  .beat--hero { width: 100%; box-sizing: border-box; }
   .beat--hero .hero-title { font-size: clamp(2.6rem, 11.5vw, 3.6rem); margin: 16px 0 18px; }
   .beat--hero .lede { color: #e6dece; max-width: 22em; }
   .beat--hero .hero-actions { margin-top: 26px; }
   .hero-title em { color: var(--gold-soft); }
   .scroll-cue i { background: rgba(255, 255, 255, .25); }
-  .scene-layer--plan::after { content: ""; position: absolute; inset: 35% 0 0; background: linear-gradient(180deg, rgba(10, 9, 7, 0), rgba(10, 9, 7, .86) 70%); }
+  .plan-veil { display: none; }
+  .scene-layer--plan::after { content: ""; position: absolute; inset: 25% 0 0; background: linear-gradient(180deg, rgba(10, 9, 7, 0), rgba(10, 9, 7, .8) 45%, rgba(10, 9, 7, .92)); }
   html.motion .scene { height: 480vh; }
   html.motion .scene-layer--plan::after { display: none; }
-  html.motion .beat--story, html.motion .beat--story.beat--low { top: auto; bottom: 0; transform: none; padding-bottom: clamp(38px, 8vh, 72px); }
+  html.motion .beat--story, html.motion .beat--story.beat--low { top: auto; bottom: 0; transform: none; width: 100%; box-sizing: border-box; padding-bottom: clamp(38px, 8vh, 72px); }
   html.motion .beat--story:not(.beat--low) { --fg: var(--cream); --fg-muted: #d3cabb; }
   html.motion .beat--story:not(.beat--low) .beat-title em { color: var(--gold-soft); }
-  html.motion .scene-veil { opacity: 1; background: linear-gradient(0deg, rgba(10, 9, 7, .88) 0%, rgba(10, 9, 7, .55) 30%, rgba(10, 9, 7, 0) 56%), linear-gradient(180deg, rgba(10, 9, 7, .5) 0%, rgba(10, 9, 7, 0) 18%); }
+  html.motion .scene-veil { opacity: 1; background: linear-gradient(0deg, rgba(10, 9, 7, .92) 0%, rgba(10, 9, 7, .82) 34%, rgba(10, 9, 7, .45) 52%, rgba(10, 9, 7, 0) 68%), linear-gradient(180deg, rgba(10, 9, 7, .55) 0%, rgba(10, 9, 7, 0) 18%); }
   html.motion .scene-ui { display: none; }
-  .site-head[data-on="light"]::before { --scrim: rgba(10, 9, 7, .62); }
+  .site-head[data-on="light"]::before { background: linear-gradient(180deg, rgba(10, 9, 7, .62), rgba(10, 9, 7, 0)); }
   .beat--final { grid-template-columns: 1fr; padding-bottom: clamp(30px, 5vh, 56px); }
   .beat--final .beat-title--lg { grid-row: auto; font-size: clamp(1.9rem, 8.4vw, 2.6rem); }
   .beat--final .beat-text { display: none; }

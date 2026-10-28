@@ -1,6 +1,6 @@
 /* Columbia Quartz homepage.
    One requestAnimationFrame loop drives everything (the digitalhorizon.dev pattern): the scrubbed
-   plan-to-elevation frame sequence, story beats, HUD, annotations, the scrubbed statement, parallax,
+   plan-to-elevation frame sequence, story beats, veils, annotations, the scrubbed statement, parallax,
    the velocity marquee and the header. Lenis smooths wheel input and is built lazily.
    html.motion (set before first paint) gates every animated state; without it the page is static. */
 (() => {
@@ -98,9 +98,8 @@
   const canvas = scene.querySelector('.scene-canvas');
   const ctx = canvas.getContext('2d', { alpha: false });
   const planStill = scene.querySelector('.scene-still--plan');
+  const planVeil = scene.querySelector('.plan-veil');
   const elevLayer = scene.querySelector('.scene-layer--elev');
-  const hudView = scene.querySelector('[data-hud-view]');
-  const hudAngle = scene.querySelector('[data-hud-angle]');
   const rail = scene.querySelector('.rail');
   const sceneUi = scene.querySelector('.scene-ui');
   const railButtons = [...scene.querySelectorAll('[data-goto]')];
@@ -109,18 +108,21 @@
     parts: [...el.querySelectorAll('[data-part]')], hero: el.classList.contains('beat--hero'),
   }));
 
-  // Choreography (scene progress 0..1). The camera move fills CAM_A..CAM_B; both ends hold on 4K stills.
-  const CAM_A = 0.09, CAM_B = 0.86;
-  const PLAN_OUT = [0.065, 0.09], ELEV_IN = [0.855, 0.885];
+  // Choreography (scene progress 0..1). Most of the scroll holds on the two sharp 4K stills (hero and
+  // beats 1-2 on the plan view, beat 3 and the finale on the elevation); the camera move between them
+  // is short and quick, CAM_A..CAM_B, so the generated clip is only on screen while it is moving.
+  const CAM_A = 0.5, CAM_B = 0.64;
+  const PLAN_OUT = [0.485, 0.5], ELEV_IN = [0.632, 0.652];
+  const PAPER_OUT = [0.47, 0.52], DARK_IN = [0.6, 0.67];
   const LINES_IN = [0.885, 0.93], LABELS_IN = [0.91, 0.95];
-  const DARK_AT = 0.6;
+  const DARK_AT = 0.57;
   const BEAT_IN = 0.035, BEAT_OUT = 0.03, PART_STAGGER = 0.01, PART_RISE = 16;
 
   // Frames arrive as encoded blobs (~7 MB for the whole wide set). Only a small window around the
   // playhead is decoded, off the main thread, into canvas-sized ImageBitmaps, so a draw is a plain blit.
   const N = +canvas.dataset.frames;
   const SRC = { wide: canvas.dataset.sizeWide.split('x').map(Number), tall: canvas.dataset.sizeTall.split('x').map(Number) };
-  const WINDOW = 7, MAX_DECODES = 3;
+  const WINDOW = 7, MAX_DECODES = 1;   // one decode at a time: parallel decodes hitch the main thread on the short, fast move
   const SAVE_DATA = !!(navigator.connection && navigator.connection.saveData);   // keep the two stills, skip the sequence
   let tall = isTall();
   let blobs = [], bitmaps = new Map(), decoding = new Set(), loadGen = 0, bmpGen = 0, loadingStarted = false;
@@ -233,7 +235,7 @@
     if (r.bottom < 0 || r.top > vh) return;
     const p = clamp(-r.top / Math.max(1, r.height - vh));
     const c = clamp((p - CAM_A) / (CAM_B - CAM_A));
-    const target = c * (N - 1);
+    const target = smooth(0, 1, c) * (N - 1);   // frames are spaced by camera motion; ease the ends
     curF = Math.abs(target - curF) > N / 3 ? target : damp(curF, target, 16, dt);
     if (!loadingStarted && p > 0) loadFrames();
     drawFrame(Math.round(curF));
@@ -242,7 +244,8 @@
     sceneP = p;
     setStyle(planStill, 'opacity', canvasReady ? String(1 - smooth(PLAN_OUT[0], PLAN_OUT[1], p)) : '1');
     setStyle(elevLayer, 'opacity', String(smooth(ELEV_IN[0], ELEV_IN[1], p)));
-    pin.style.setProperty('--veil', smooth(0.55, 0.68, p).toFixed(3));
+    setStyle(planVeil, 'opacity', (1 - smooth(PAPER_OUT[0], PAPER_OUT[1], p)).toFixed(3));
+    pin.style.setProperty('--veil', smooth(DARK_IN[0], DARK_IN[1], p).toFixed(3));
     sceneDark = p >= DARK_AT;
     pin.dataset.tone = sceneDark ? 'dark' : 'light';
 
@@ -265,13 +268,13 @@
       bt.el.inert = any < 0.02;
     }
 
-    const uiOp = 1 - smooth(0.86, 0.89, p);
+    // the chapter rail steps aside while the camera moves and for the finale
+    const moving = smooth(CAM_A - 0.02, CAM_A + 0.01, p) * (1 - smooth(CAM_B - 0.01, CAM_B + 0.02, p));
+    const uiOp = (1 - moving) * (1 - smooth(0.86, 0.89, p));
     setStyle(sceneUi, 'opacity', uiOp.toFixed(3));
     sceneUi.inert = uiOp < 0.05;
-    hudAngle.textContent = String(Math.round(90 * (1 - c)));
-    hudView.textContent = c < 0.3 ? 'Plan' : c < 0.85 ? 'Oblique' : 'Elevation';
     rail.style.setProperty('--p', p.toFixed(4));
-    let on = 0; railButtons.forEach((b, i) => { if (p >= +b.dataset.goto - 0.13) on = i; });
+    let on = 0; railButtons.forEach((b, i) => { if (p >= +b.dataset.goto - 0.1) on = i; });
     railButtons.forEach((b, i) => b.classList.toggle('is-on', i === on));
 
     const ln = smooth(LINES_IN[0], LINES_IN[1], p), lb = smooth(LABELS_IN[0], LABELS_IN[1], p);
@@ -366,7 +369,7 @@
   let lastY = scrollY;
   function updateHead() {
     const y = scrollY, pinnedUntil = scene.offsetTop + scene.offsetHeight - innerHeight;
-    if (y < pinnedUntil + 4) {
+    if (MOTION ? y < pinnedUntil + 4 : y < 8) {   // the static layout scrolls like any other section
       head.classList.remove('is-solid', 'is-paper', 'is-hidden');
       head.dataset.on = sceneDark ? 'dark' : 'light';
     } else {
