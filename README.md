@@ -23,9 +23,17 @@ velocity marquee and the header. Lenis (`assets/vendor/`) smooths wheel scrollin
 - Phones use a separate portrait frame set (2.7 MB) instead of the 16:9 set (7.6 MB).
 - Frames load after the page's `load` event, coarse to fine, so scrubbing works before every frame has arrived.
 
+## Inspirations page
+
+`/inspirations/` is a lookbook of 13 rooms (kitchens, baths, laundry, pantry, fireplace), each finished
+in a real Columbia slab with styling notes and a spec card. It reuses `home.css` and adds
+`assets/css/inspirations.css` + `assets/js/inspirations.js`. The HTML is generated from
+`tools/inspirations/looks.py`; how the photography was made: [`tools/inspirations/README.md`](tools/inspirations/README.md).
+
 ## Files
 
 - `index.html`: markup
+- `inspirations/index.html`: the Inspirations lookbook (built by `tools/inspirations/build_page.py`)
 - `assets/css/home.css`, `assets/js/home.js`: styles and motion
 - `assets/scene/`: frame sequence and endpoint stills
 - `assets/img/`: logo, slab swatches, room photography
