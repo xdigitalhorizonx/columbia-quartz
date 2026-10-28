@@ -1,0 +1,6 @@
+2026-10-28  Google Fonts: Cormorant Garamond:ital,wght@0,400..600;1,400..500
+  css: https://fonts.googleapis.com/css2?family=Cormorant%20Garamond%3Aital%2Cwght%400%2C400..600%3B1%2C400..500&display=swap
+  licence: see https://fonts.google.com/specimen/Cormorant+Garamond
+2026-10-28  Google Fonts: Mulish:wght@300..700
+  css: https://fonts.googleapis.com/css2?family=Mulish%3Awght%40300..700&display=swap
+  licence: see https://fonts.google.com/specimen/Mulish
