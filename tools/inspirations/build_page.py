@@ -144,8 +144,8 @@ TEMPLATE = """<!DOCTYPE html>
 <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/fonts/cormorant-garamond-latin-400-600.woff2">
 <link rel="stylesheet" href="/assets/fonts/fonts.css">
 <link rel="stylesheet" href="/assets/vendor/lenis.css">
-<link rel="stylesheet" href="/assets/css/home.css">
-<link rel="stylesheet" href="/assets/css/inspirations.css">
+<link rel="stylesheet" href="/assets/css/home.css?v=2">
+<link rel="stylesheet" href="/assets/css/inspirations.css?v=1">
 <script>
   /* Before first paint: hidden starting states exist only when motion is welcome. */
   (function (d) {{
@@ -269,7 +269,7 @@ TEMPLATE = """<!DOCTYPE html>
 </footer>
 
 <script src="/assets/vendor/lenis.min.js" defer></script>
-<script src="/assets/js/inspirations.js" defer></script>
+<script src="/assets/js/inspirations.js?v=1" defer></script>
 </body>
 </html>
 """

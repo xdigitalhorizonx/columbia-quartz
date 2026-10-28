@@ -36,3 +36,6 @@ python tools/inspirations/build_page.py
 
 `export.py` writes `assets/img/inspirations/<look-id>-{800,1400,2000}.webp` (about 3.6 MB for all 39 files).
 If a photo changes, re-check its `pin` in `looks.py`: it marks where the quartz is, as % of width/height.
+
+`/assets/` is cached for 7 days by URL. When `inspirations.css`/`.js` change, bump their `?v=` in the
+`build_page.py` template; when the homepage bumps `home.css?v=`, match it there too.
