@@ -100,21 +100,18 @@
   const planStill = scene.querySelector('.scene-still--plan');
   const planVeil = scene.querySelector('.plan-veil');
   const elevLayer = scene.querySelector('.scene-layer--elev');
-  const rail = scene.querySelector('.rail');
-  const sceneUi = scene.querySelector('.scene-ui');
-  const railButtons = [...scene.querySelectorAll('[data-goto]')];
   const beats = [...scene.querySelectorAll('[data-beat]')].map((el) => ({
     el, a: +el.dataset.in, b: +el.dataset.out,
     parts: [...el.querySelectorAll('[data-part]')], hero: el.classList.contains('beat--hero'),
   }));
 
-  // Choreography (scene progress 0..1). Most of the scroll holds on the two sharp 4K stills (hero and
-  // beats 1-2 on the plan view, beat 3 and the finale on the elevation); the camera move between them
-  // is short and quick, CAM_A..CAM_B, so the generated clip is only on screen while it is moving.
-  const CAM_A = 0.5, CAM_B = 0.64;
-  const PLAN_OUT = [0.485, 0.5], ELEV_IN = [0.632, 0.652];
-  const PAPER_OUT = [0.47, 0.52], DARK_IN = [0.6, 0.67];
-  const LINES_IN = [0.885, 0.93], LABELS_IN = [0.91, 0.95];
+  // Choreography (scene progress 0..1). The camera starts moving with the first scroll: the plan still
+  // hands over to the clip at once, and the move lands on the elevation still, where the finale and the
+  // edge callouts hold.
+  const CAM_A = 0.02, CAM_B = 0.5;
+  const PLAN_OUT = [0.01, 0.025], ELEV_IN = [0.49, 0.52];
+  const SHADE_OUT = [0, 0.12], DARK_IN = [0.48, 0.58];
+  const LINES_IN = [0.58, 0.66], LABELS_IN = [0.62, 0.7];
   const BEAT_IN = 0.035, BEAT_OUT = 0.03, PART_STAGGER = 0.01, PART_RISE = 16;
 
   // Frames arrive as encoded blobs (~7 MB for the whole wide set). Only a small window around the
@@ -224,10 +221,6 @@
     label.style.transform = `translate3d(${Math.round(side === 'left' ? x : x - r.width)}px, ${Math.round(y - r.height / 2)}px, 0)`;
   }
 
-  railButtons.forEach((b) => b.addEventListener('click', () => {
-    scrollToY(scene.offsetTop + +b.dataset.goto * (scene.offsetHeight - innerHeight));
-  }));
-
   let sceneP = -1;
   function updateScene(dt) {
     const r = scene.getBoundingClientRect(), vh = innerHeight;
@@ -243,7 +236,7 @@
     sceneP = p;
     setStyle(planStill, 'opacity', canvasReady ? String(1 - smooth(PLAN_OUT[0], PLAN_OUT[1], p)) : '1');
     setStyle(elevLayer, 'opacity', String(smooth(ELEV_IN[0], ELEV_IN[1], p)));
-    setStyle(planVeil, 'opacity', (1 - smooth(PAPER_OUT[0], PAPER_OUT[1], p)).toFixed(3));
+    setStyle(planVeil, 'opacity', (1 - smooth(SHADE_OUT[0], SHADE_OUT[1], p)).toFixed(3));
     pin.style.setProperty('--veil', smooth(DARK_IN[0], DARK_IN[1], p).toFixed(3));
 
     for (const bt of beats) {
@@ -264,15 +257,6 @@
       });
       bt.el.inert = any < 0.02;
     }
-
-    // the chapter rail steps aside while the camera moves and for the finale
-    const moving = smooth(CAM_A - 0.02, CAM_A + 0.01, p) * (1 - smooth(CAM_B - 0.01, CAM_B + 0.02, p));
-    const uiOp = (1 - moving) * (1 - smooth(0.86, 0.89, p));
-    setStyle(sceneUi, 'opacity', uiOp.toFixed(3));
-    sceneUi.inert = uiOp < 0.05;
-    rail.style.setProperty('--p', p.toFixed(4));
-    let on = 0; railButtons.forEach((b, i) => { if (p >= +b.dataset.goto - 0.1) on = i; });
-    railButtons.forEach((b, i) => b.classList.toggle('is-on', i === on));
 
     const ln = smooth(LINES_IN[0], LINES_IN[1], p), lb = smooth(LABELS_IN[0], LABELS_IN[1], p);
     notePaths.forEach(({ el, len }) => {

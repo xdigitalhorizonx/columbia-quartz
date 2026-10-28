@@ -6,14 +6,15 @@ Premium quartz surfaces marketing homepage. Static site: `index.html` plus local
 
 Scrolling turns the camera from a top-down plan view of a Calacatta LX Gold island to a
 counter-height profile of its mitred edge. The imagery is photographic (AI-generated stills and
-an image-to-video camera move, cut into 72 WebP frames), drawn to a canvas as you scroll. Most of
-the scroll holds on the two 4K stills; the move between them is short.
+an image-to-video camera move, cut into 72 WebP frames), drawn to a canvas as you scroll. The page
+opens on the sharp 4K plan still, the move starts with the first scroll, and it lands on the 4K
+elevation still.
 How it was made and how to rebuild it: [`tools/scene/README.md`](tools/scene/README.md).
 
 ## Motion
 
 The motion language follows digitalhorizon.dev: one `requestAnimationFrame` loop
-(`assets/js/home.js`) drives the pinned scene, story beats, scrubbed statement, parallax, the
+(`assets/js/home.js`) drives the pinned scene, hero and finale copy, scrubbed statement, parallax, the
 velocity marquee and the header. Lenis (`assets/vendor/`) smooths wheel scrolling.
 
 - `prefers-reduced-motion`: no pinning, no Lenis, no reveals. The page renders as a static layout

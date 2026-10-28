@@ -38,12 +38,13 @@ skips them, so scrolling through the frames reads as one steady move.
 The stills are exported at WebP quality 90–93 on purpose. At quality 80, WebP smooths away about half
 of the stone's fine grain, which reads as blur on large and high-density screens.
 
-## Why the move is short
+## How the page uses them
 
-An image-to-video model redraws the veining and the lemon leaves on every frame, so they drift during
-the move. The page therefore holds on the two 4K stills for most of the scroll (hero and beats 1–2 on
-the plan view, beat 3 and the finale on the elevation) and plays the clip only during a short, quick
-camera move (`CAM_A`–`CAM_B` in `assets/js/home.js`).
+The move starts with the first scroll (`CAM_A`–`CAM_B` in `assets/js/home.js`) and lands on the
+elevation still, where the finale and the edge callouts hold. The plan still is layered above the
+frame canvas and fades out only once the move starts, so the first view is always the sharp 4K
+photo, never a 1080p clip frame. An image-to-video model redraws the veining and the lemon leaves
+on every frame, so some drift during the move is inherent to the clip.
 
 If the frame count or sizes change, update `data-frames` / `data-size-*` on the canvas in
 `index.html`. If the portrait crop path changes, update `TALL_CROP` in `assets/js/home.js`.
