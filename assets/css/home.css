@@ -166,7 +166,7 @@ em { font-style: italic; }
 .beat--hero {
   position: absolute; top: 0; left: 0; z-index: 3;
   padding: calc(var(--head-h) + clamp(28px, 10vh, 120px)) var(--gutter) 0;
-  width: min(760px, 56vw);
+  width: min(980px, 62vw);
   --fg: var(--cream); --fg-muted: #d6cdbf;
   color: var(--fg);
 }
