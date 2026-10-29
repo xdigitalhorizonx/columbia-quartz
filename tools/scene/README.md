@@ -2,7 +2,7 @@
 
 The hero is a scroll-scrubbed camera move over a Calacatta LX Gold island, from a top-down plan view to a
 counter-height view of the mitred edge. It is a real 3D render (Blender 5.2, Cycles), so the veining, the
-lemons and the leaves are identical in every frame. That is what lets the move fill most of the scroll.
+lemons and the leaves are identical in every frame and nothing drifts while the camera moves.
 
 ## What is in the scene
 
@@ -46,10 +46,15 @@ view 2.7 m out and 0.63 m above the top, ending with a slight lens shift (as an 
 would) so the edge sits low in frame. Focal length and aperture ease from 50 mm f/11 to 70 mm f/5.6
 (tall: 58 mm to 110 mm). Frames are evenly spaced along the path; `home.js` eases the ends.
 
-## Wiring it into the page
+## How the page uses them
+
+The move starts with the first scroll (`CAM_A`–`CAM_B` in `assets/js/home.js`) and lands on the
+elevation still, where the finale and the edge callouts hold. The plan still is layered above the
+frame canvas and fades out only once the move starts, so the first view is always the sharp 4K
+render; frame 0 is the same picture, so the hand-over is invisible.
 
 - Frame count or sizes change: update `data-frames` / `data-size-*` on the canvas in `index.html`.
 - Any image changes: bump `data-rev` and every `?v=` on scene images; `/assets/` is cached for 7 days by URL.
 - Callouts: `render_move.py --notes x1,x2,...` prints where points on the front edge land in the last frame
   (x, then y from the top for the top, middle and bottom of the edge). Copy them into `NOTES` in `home.js`.
-- Timing: `CAM_A`/`CAM_B` in `home.js` and the beats' `data-in`/`data-out` in `index.html`.
+- Timing: `CAM_A`/`CAM_B` in `home.js` and the finale's `data-in` in `index.html`.

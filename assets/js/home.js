@@ -100,22 +100,18 @@
   const planStill = scene.querySelector('.scene-still--plan');
   const planVeil = scene.querySelector('.plan-veil');
   const elevLayer = scene.querySelector('.scene-layer--elev');
-  const rail = scene.querySelector('.rail');
-  const sceneUi = scene.querySelector('.scene-ui');
-  const railButtons = [...scene.querySelectorAll('[data-goto]')];
   const beats = [...scene.querySelectorAll('[data-beat]')].map((el) => ({
     el, a: +el.dataset.in, b: +el.dataset.out,
     parts: [...el.querySelectorAll('[data-part]')], hero: el.classList.contains('beat--hero'),
   }));
 
-  // Choreography (scene progress 0..1). The frames are a 3D render, so the stone and the leaves are the
-  // same in every frame and the camera can move for most of the scroll, CAM_A..CAM_B: it leaves plan view
-  // as beat 1 arrives and settles at counter height for beat 3. The sharp 4K stills (identical to the
-  // first and last frame) stand in at either end.
-  const CAM_A = 0.09, CAM_B = 0.84;
-  const PLAN_OUT = [0.08, 0.095], ELEV_IN = [0.84, 0.86];
-  const PAPER_OUT = [0.5, 0.6], DARK_IN = [0.6, 0.68];
-  const LINES_IN = [0.865, 0.91], LABELS_IN = [0.89, 0.93];
+  // Choreography (scene progress 0..1). The camera starts moving with the first scroll: the plan still
+  // hands over to the rendered frames at once (frame 0 is the same picture), and the move lands on the
+  // elevation still, where the finale and the edge callouts hold.
+  const CAM_A = 0.02, CAM_B = 0.5;
+  const PLAN_OUT = [0.01, 0.025], ELEV_IN = [0.49, 0.52];
+  const SHADE_OUT = [0, 0.12], DARK_IN = [0.48, 0.58];
+  const LINES_IN = [0.58, 0.66], LABELS_IN = [0.62, 0.7];
   const BEAT_IN = 0.035, BEAT_OUT = 0.03, PART_STAGGER = 0.01, PART_RISE = 16;
 
   // Frames arrive as encoded blobs (~7 MB for the whole wide set). Only a small window around the
@@ -224,10 +220,6 @@
     label.style.transform = `translate3d(${Math.round(side === 'left' ? x : x - r.width)}px, ${Math.round(y - r.height / 2)}px, 0)`;
   }
 
-  railButtons.forEach((b) => b.addEventListener('click', () => {
-    scrollToY(scene.offsetTop + +b.dataset.goto * (scene.offsetHeight - innerHeight));
-  }));
-
   let sceneP = -1;
   function updateScene(dt) {
     const r = scene.getBoundingClientRect(), vh = innerHeight;
@@ -243,7 +235,7 @@
     sceneP = p;
     setStyle(planStill, 'opacity', canvasReady ? String(1 - smooth(PLAN_OUT[0], PLAN_OUT[1], p)) : '1');
     setStyle(elevLayer, 'opacity', String(smooth(ELEV_IN[0], ELEV_IN[1], p)));
-    setStyle(planVeil, 'opacity', (1 - smooth(PAPER_OUT[0], PAPER_OUT[1], p)).toFixed(3));
+    setStyle(planVeil, 'opacity', (1 - smooth(SHADE_OUT[0], SHADE_OUT[1], p)).toFixed(3));
     pin.style.setProperty('--veil', smooth(DARK_IN[0], DARK_IN[1], p).toFixed(3));
 
     for (const bt of beats) {
@@ -264,14 +256,6 @@
       });
       bt.el.inert = any < 0.02;
     }
-
-    // the chapter rail steps aside for the finale
-    const uiOp = 1 - smooth(0.86, 0.89, p);
-    setStyle(sceneUi, 'opacity', uiOp.toFixed(3));
-    sceneUi.inert = uiOp < 0.05;
-    rail.style.setProperty('--p', p.toFixed(4));
-    let on = 0; railButtons.forEach((b, i) => { if (p >= +b.dataset.goto - 0.1) on = i; });
-    railButtons.forEach((b, i) => b.classList.toggle('is-on', i === on));
 
     const ln = smooth(LINES_IN[0], LINES_IN[1], p), lb = smooth(LABELS_IN[0], LABELS_IN[1], p);
     notePaths.forEach(({ el, len }) => {

@@ -7,14 +7,14 @@ Premium quartz surfaces marketing homepage. Static site: `index.html` plus local
 Scrolling turns the camera from a top-down plan view of a Calacatta LX Gold island to a
 counter-height profile of its mitred edge. The imagery is a 3D render (Blender, Cycles) of the real
 LX Gold slab, 120 WebP frames drawn to a canvas as you scroll, so the veining and the leaves never
-change between frames. The camera moves for most of the scroll; 4K stills of the first and last
-frame stand in at either end.
+change between frames. The page opens on the sharp 4K plan still, the move starts with the first
+scroll, and it lands on the 4K elevation still.
 How it was made and how to rebuild it: [`tools/scene/README.md`](tools/scene/README.md).
 
 ## Motion
 
 The motion language follows digitalhorizon.dev: one `requestAnimationFrame` loop
-(`assets/js/home.js`) drives the pinned scene, story beats, scrubbed statement, parallax, the
+(`assets/js/home.js`) drives the pinned scene, hero and finale copy, scrubbed statement, parallax, the
 velocity marquee and the header. Lenis (`assets/vendor/`) smooths wheel scrolling.
 
 - `prefers-reduced-motion`: no pinning, no Lenis, no reveals. The page renders as a static layout
