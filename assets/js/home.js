@@ -187,7 +187,7 @@
   const noteLabels = Object.fromEntries([...notesEl.querySelectorAll('[data-note]')].map((n) => [n.dataset.note, n]));
   const NOTES = {
     wide: { aspect: 16 / 9, thickness: { x: 0.12, y0: 0.595, y1: 0.717 }, vein: { x: 0.312, y: 0.648, ex: 0.37, ey: 0.55 } },
-    tall: { aspect: 9 / 16, thickness: { x: 0.3, y0: 0.597, y1: 0.718 }, vein: null },
+    tall: { aspect: 9 / 16, thickness: { x: 0.2, y0: 0.59, y1: 0.698 }, vein: null },
   };
   let notePaths = [];
   function layoutNotes() {
