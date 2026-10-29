@@ -20,7 +20,7 @@ velocity marquee and the header. Lenis (`assets/vendor/`) smooths wheel scrollin
 - `prefers-reduced-motion`: no pinning, no Lenis, no reveals. The page renders as a static layout
   with both stills and all copy visible.
 - Data Saver: the frame sequence is skipped and the scene cross-fades between the two stills.
-- Phones use a separate portrait frame set (2.7 MB) instead of the 16:9 set (7.6 MB).
+- Phones use their own 9:16 render of the move (about 4 MB) instead of the 16:9 set (7.5 MB).
 - Frames load after the page's `load` event, coarse to fine, so scrubbing works before every frame has arrived.
 
 ## Inspirations page

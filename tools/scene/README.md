@@ -16,7 +16,7 @@ lemons and the leaves are identical in every frame and nothing drifts while the 
 | Light | Poly Haven `meadow` HDRI through steel-framed windows, plus a low warm sun from the open right side |
 | Bowl, vase, tray, cups, room | Modelled in `build_scene.py` (lathed stoneware with speckle, spun brushed brass, porcelain) |
 
-Assets are not in git (about 150 MB). They live in `C:\dev\columbia-quartz-source\3d\` on Brandon's PC:
+Assets are not in git (about 135 MB). They live in `C:\dev\columbia-quartz-source\3d\` on Brandon's PC:
 `assets/` (each folder has the downloader's `LICENSE.txt`), `tex/`, `scene.blend` and `renders/`.
 Re-download with the `cc0-assets` skill if needed.
 
@@ -26,7 +26,7 @@ Re-download with the `cc0-assets` skill if needed.
 B=C:/dev/tools/blender-5.2.3-windows-x64/blender.exe
 SRC=C:/dev/columbia-quartz-source/3d
 "$B" -b --factory-startup --python tools/scene/build_scene.py -- --src $SRC   # ~3 min, writes $SRC/scene.blend
-bash tools/scene/render_all.sh $SRC                                           # ~75 min on an RTX 3070 Ti
+bash tools/scene/render_all.sh $SRC                                           # ~60 min on an RTX 3070 Ti
 ```
 
 `render_all.sh` renders, then runs `export_frames.py` (needs Pillow + numpy), which writes:
@@ -44,7 +44,7 @@ match exactly and the page can swap between them with no visible seam.
 `render_move.py` holds both paths (`PATHS`). Each starts straight down from 2.6 m and cranes down to a
 view 2.7 m out and 0.63 m above the top, ending with a slight lens shift (as an architectural photographer
 would) so the edge sits low in frame. Focal length and aperture ease from 50 mm f/11 to 70 mm f/5.6
-(tall: 58 mm to 110 mm). Frames are evenly spaced along the path; `home.js` eases the ends.
+(tall: 58 mm to 100 mm). Frames are evenly spaced along the path; `home.js` eases the ends.
 
 ## How the page uses them
 

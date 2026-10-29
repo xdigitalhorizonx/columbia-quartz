@@ -24,7 +24,7 @@ TOP_Z, EDGE, Y0 = 0.92, 0.10, -0.55
 # architectural photographer would) so the front edge sits at y1 (fraction of frame height, from the bottom).
 PATHS = {
     'wide': dict(p0=(-0.64, -0.27), r0=2.6, f0=50, p1=(-0.18, Y0), D=2.7, h=0.634, f1=70, pitch1=8.0, y1=0.405),
-    'tall': dict(p0=(-0.22, -0.33), r0=2.6, f0=58, p1=(-0.43, Y0), D=2.7, h=0.634, f1=110, pitch1=8.0, y1=0.41),
+    'tall': dict(p0=(-0.34, -0.33), r0=2.6, f0=58, p1=(-0.45, Y0), D=2.7, h=0.634, f1=100, pitch1=8.0, y1=0.41),
 }
 P = PATHS[CAM]
 E1 = math.degrees(math.atan2(P['h'], P['D']))
