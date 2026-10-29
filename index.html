@@ -8,11 +8,11 @@
 <meta name="theme-color" content="#0c0b09">
 <link rel="icon" type="image/png" href="assets/img/icon-96.png">
 <link rel="preload" as="font" type="font/woff2" crossorigin href="assets/fonts/cormorant-garamond-latin-400-600.woff2">
-<link rel="preload" as="image" href="assets/scene/plan-1600.webp?v=6" imagesrcset="assets/scene/plan-1600.webp?v=6 1600w, assets/scene/plan-2560.webp?v=6 2560w, assets/scene/plan-3840.webp?v=6 3840w" imagesizes="(min-aspect-ratio: 16/9) 100vw, 178svh" media="(min-aspect-ratio: 9/10)" fetchpriority="high">
-<link rel="preload" as="image" href="assets/scene/plan-portrait-1200.webp?v=6" imagesrcset="assets/scene/plan-portrait-1200.webp?v=6 675w, assets/scene/plan-portrait-1800.webp?v=6 1012w, assets/scene/plan-portrait-2400.webp?v=6 1350w" imagesizes="(max-aspect-ratio: 9/16) 56.25svh, 100vw" media="(max-aspect-ratio: 9/10)" fetchpriority="high">
+<link rel="preload" as="image" href="assets/scene/plan-1600.webp?v=7" imagesrcset="assets/scene/plan-1600.webp?v=7 1600w, assets/scene/plan-2560.webp?v=7 2560w, assets/scene/plan-3840.webp?v=7 3840w" imagesizes="(min-aspect-ratio: 16/9) 100vw, 178svh" media="(min-aspect-ratio: 9/10)" fetchpriority="high">
+<link rel="preload" as="image" href="assets/scene/plan-portrait-1200.webp?v=7" imagesrcset="assets/scene/plan-portrait-1200.webp?v=7 675w, assets/scene/plan-portrait-1800.webp?v=7 1012w, assets/scene/plan-portrait-2400.webp?v=7 1350w" imagesizes="(max-aspect-ratio: 9/16) 56.25svh, 100vw" media="(max-aspect-ratio: 9/10)" fetchpriority="high">
 <link rel="stylesheet" href="assets/fonts/fonts.css">
 <link rel="stylesheet" href="assets/vendor/lenis.css">
-<link rel="stylesheet" href="assets/css/home.css?v=6">
+<link rel="stylesheet" href="assets/css/home.css?v=7">
 <script>
   /* Before first paint: hidden starting states and the pinned scene exist only when motion is welcome. */
   (function (d) {
@@ -46,23 +46,23 @@
 
 <main>
 
-<!-- ============ THE SCENE — plan view to elevation, scrubbed by scroll ============ -->
-<section class="scene" id="top" aria-label="Calacatta LX Gold, from plan view to edge profile" data-scene>
+<!-- ============ THE SCENE — island plan to edge, across to the sink, back to the whole kitchen ============ -->
+<section class="scene" id="top" aria-label="A Calacatta LX Gold island and a Calacatta LX Noir sink run, from overhead to the whole kitchen" data-scene>
   <div class="scene-pin">
 
     <div class="scene-layer scene-layer--plan">
       <picture>
-        <source media="(max-aspect-ratio: 9/10)" srcset="assets/scene/plan-portrait-1200.webp?v=6 675w, assets/scene/plan-portrait-1800.webp?v=6 1012w, assets/scene/plan-portrait-2400.webp?v=6 1350w" sizes="(max-aspect-ratio: 9/16) 56.25svh, 100vw">
-        <img class="scene-still scene-still--plan" src="assets/scene/plan-1600.webp?v=6" srcset="assets/scene/plan-1600.webp?v=6 1600w, assets/scene/plan-2560.webp?v=6 2560w, assets/scene/plan-3840.webp?v=6 3840w" sizes="(min-aspect-ratio: 16/9) 100vw, 178svh" width="2560" height="1440" alt="Overhead view of a Calacatta LX Gold quartz island styled with a bowl of lemons, an olive branch, espresso cups on a brass tray, and a linen napkin" fetchpriority="high">
+        <source media="(max-aspect-ratio: 9/10)" srcset="assets/scene/plan-portrait-1200.webp?v=7 675w, assets/scene/plan-portrait-1800.webp?v=7 1012w, assets/scene/plan-portrait-2400.webp?v=7 1350w" sizes="(max-aspect-ratio: 9/16) 56.25svh, 100vw">
+        <img class="scene-still scene-still--plan" src="assets/scene/plan-1600.webp?v=7" srcset="assets/scene/plan-1600.webp?v=7 1600w, assets/scene/plan-2560.webp?v=7 2560w, assets/scene/plan-3840.webp?v=7 3840w" sizes="(min-aspect-ratio: 16/9) 100vw, 178svh" width="2560" height="1440" alt="Overhead view of a Calacatta LX Gold quartz island styled with a bowl of lemons, an olive branch, espresso cups on a brass tray, and a linen napkin" fetchpriority="high">
       </picture>
-      <canvas class="scene-canvas" aria-hidden="true" data-frames="120" data-rev="6" data-frames-wide="assets/scene/d/" data-size-wide="1920x1080" data-frames-tall="assets/scene/m/" data-size-tall="720x1280"></canvas>
+      <canvas class="scene-canvas" aria-hidden="true" data-frames="288" data-rev="7" data-frames-wide="assets/scene/d/" data-size-wide="1920x1080" data-frames-tall="assets/scene/m/" data-size-tall="720x1280"></canvas>
       <div class="plan-veil" aria-hidden="true"></div>
     </div>
 
-    <div class="scene-layer scene-layer--elev">
+    <div class="scene-layer scene-layer--elev" data-hold="0.2287,0.2427,0.38,0.39">
       <picture>
-        <source media="(max-aspect-ratio: 9/10)" srcset="assets/scene/elevation-portrait-1200.webp?v=6 675w, assets/scene/elevation-portrait-1800.webp?v=6 1012w, assets/scene/elevation-portrait-2400.webp?v=6 1350w" sizes="(max-aspect-ratio: 9/16) 56.25svh, 100vw">
-        <img class="scene-still scene-still--elev" src="assets/scene/elevation-1600.webp?v=6" srcset="assets/scene/elevation-1600.webp?v=6 1600w, assets/scene/elevation-2560.webp?v=6 2560w, assets/scene/elevation-3840.webp?v=6 3840w" sizes="(min-aspect-ratio: 16/9) 100vw, 178svh" width="2560" height="1440" loading="lazy" alt="The same island at counter height, showing the thick mitred quartz edge with gold veining wrapping over it, above a fluted walnut base">
+        <source media="(max-aspect-ratio: 9/10)" srcset="assets/scene/elevation-portrait-1200.webp?v=7 675w, assets/scene/elevation-portrait-1800.webp?v=7 1012w, assets/scene/elevation-portrait-2400.webp?v=7 1350w" sizes="(max-aspect-ratio: 9/16) 56.25svh, 100vw">
+        <img class="scene-still scene-still--elev" src="assets/scene/elevation-1600.webp?v=7" srcset="assets/scene/elevation-1600.webp?v=7 1600w, assets/scene/elevation-2560.webp?v=7 2560w, assets/scene/elevation-3840.webp?v=7 3840w" sizes="(min-aspect-ratio: 16/9) 100vw, 178svh" width="2560" height="1440" loading="lazy" alt="The same island at counter height, showing the thick mitred quartz edge with gold veining wrapping over it, above a fluted walnut base">
       </picture>
       <div class="notes" aria-hidden="true" data-notes>
         <svg class="notes-lines"></svg>
@@ -71,9 +71,30 @@
       </div>
     </div>
 
+    <div class="scene-layer scene-layer--sink" data-hold="0.58,0.593,0.68,0.69" data-late>
+      <picture>
+        <source media="(max-aspect-ratio: 9/10)" srcset="assets/scene/sink-portrait-1200.webp?v=7 675w, assets/scene/sink-portrait-1800.webp?v=7 1012w, assets/scene/sink-portrait-2400.webp?v=7 1350w" sizes="(max-aspect-ratio: 9/16) 56.25svh, 100vw">
+        <img class="scene-still" src="assets/scene/sink-1600.webp?v=7" srcset="assets/scene/sink-1600.webp?v=7 1600w, assets/scene/sink-2560.webp?v=7 2560w, assets/scene/sink-3840.webp?v=7 3840w" sizes="(min-aspect-ratio: 16/9) 100vw, 178svh" width="2560" height="1440" loading="lazy" decoding="async" alt="The sink run in Calacatta LX Noir: an undermount steel sink and brass gooseneck faucet, the black veining running from the counter up the backsplash, walnut cabinets below">
+      </picture>
+      <p class="hold-cap">Calacatta LX Noir <span>Perimeter and backsplash</span></p>
+    </div>
+
+    <div class="scene-layer scene-layer--kitchen" data-hold="0.913,0.927,2,2" data-late>
+      <picture>
+        <source media="(max-aspect-ratio: 9/10)" srcset="assets/scene/kitchen-portrait-1200.webp?v=7 675w, assets/scene/kitchen-portrait-1800.webp?v=7 1012w, assets/scene/kitchen-portrait-2400.webp?v=7 1350w" sizes="(max-aspect-ratio: 9/16) 56.25svh, 100vw">
+        <img class="scene-still" src="assets/scene/kitchen-1600.webp?v=7" srcset="assets/scene/kitchen-1600.webp?v=7 1600w, assets/scene/kitchen-2560.webp?v=7 2560w, assets/scene/kitchen-3840.webp?v=7 3840w" sizes="(min-aspect-ratio: 16/9) 100vw, 178svh" width="2560" height="1440" loading="lazy" decoding="async" alt="The whole kitchen: the Calacatta LX Gold island on its fluted walnut base and the Calacatta LX Noir sink run along the wall, under steel-framed windows">
+      </picture>
+      <p class="hold-cap">Calacatta LX Gold <span>Island</span> <i aria-hidden="true">/</i> Calacatta LX Noir <span>Perimeter</span></p>
+    </div>
+
     <div class="scene-veil" aria-hidden="true"></div>
 
-    <div class="beat beat--hero" data-beat data-in="-1" data-out="0.12">
+    <div class="tags" data-tags>
+      <p class="tag" data-tag="gold"><b>Calacatta LX Gold</b> <span>Island</span></p>
+      <p class="tag" data-tag="noir"><b>Calacatta LX Noir</b> <span>Perimeter</span></p>
+    </div>
+
+    <div class="beat beat--hero" data-beat data-in="-1" data-out="0.056">
       <p class="eyebrow rise" style="--d:.15s">Calacatta LX Gold <span class="dot" aria-hidden="true"></span> No. 01</p>
       <h1 class="display hero-title"><span class="line focus" style="--d:.05s">Timeless surfaces.</span> <span class="line focus" style="--d:.2s"><em>Elevated living.</em></span></h1>
       <p class="lede rise" style="--d:.5s">Premium quartz surfaces designed for beautiful, lasting spaces.</p>
@@ -83,7 +104,7 @@
       </div>
     </div>
 
-    <div class="beat beat--final" data-beat data-in="0.56" data-out="2">
+    <div class="beat beat--final" data-beat data-in="0.2613" data-out="0.383">
       <p class="eyebrow" data-part>Crafted to the edge</p>
       <h2 class="beat-title beat-title--lg" data-part>Veining that carries over the edge, <em>uninterrupted.</em></h2>
       <a class="link-line" href="#craft" data-part>See the details <svg viewBox="0 0 22 9" aria-hidden="true"><path d="M0 4.5h20M16 1l4 3.5-4 3.5"/></svg></a>
@@ -273,6 +294,6 @@
 </footer>
 
 <script src="assets/vendor/lenis.min.js" defer></script>
-<script src="assets/js/home.js?v=6" defer></script>
+<script src="assets/js/home.js?v=7" defer></script>
 </body>
 </html>

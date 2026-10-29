@@ -1,9 +1,9 @@
-# Export the rendered camera move and its two endpoint stills to the homepage's WebP sets.
+# Export the rendered camera move and its hold stills to the homepage's WebP sets.
 # usage: python tools/scene/export_frames.py <renders-dir> assets/scene     (needs Pillow + numpy)
 #   <renders-dir>/wide/NNN.png    the move, 16:9 (1920x1080)        -> assets/scene/d/NNN.webp
 #   <renders-dir>/tall/NNN.png    the move, 9:16 (720x1280)         -> assets/scene/m/NNN.webp
-#   <renders-dir>/stills/wide/000.png, 001.png  plan + elevation, 3840x2160 -> plan-/elevation-{3840,2560,1600}.webp
-#   <renders-dir>/stills/tall/000.png, 001.png  plan + elevation, 1440x2560 -> *-portrait-{2400,1800,1200}.webp
+#   <renders-dir>/stills/{wide,tall}/000, 119, 191, 287.png  the four holds at 4K
+#       -> {plan,elevation,sink,kitchen}-{3840,2560,1600}.webp and -portrait-{2400,1800,1200}.webp
 # Every image gets the same gentle lens vignette, so a still and the frame it stands in for match exactly.
 import os, sys
 import numpy as np
@@ -38,10 +38,10 @@ for kind, d, q in (('wide', 'd', 84), ('tall', 'm', 82)):
         tot[d] += os.path.getsize(p)
     tot[d + '_frames'] = len(files)
 
-# endpoint stills. High quality on purpose: at q80 WebP smooths away the stone's fine grain,
+# hold stills. High quality on purpose: at q80 WebP smooths away the stone's fine grain,
 # which reads as blur on large and high-density screens.
 for kind, sizes in (('wide', ((3840, 90), (2560, 92), (1600, 92))), ('tall', ((2400, 90), (1800, 92), (1200, 92)))):
-    for name, f in (('plan', '000.png'), ('elevation', '001.png')):
+    for name, f in (('plan', '000.png'), ('elevation', '119.png'), ('sink', '191.png'), ('kitchen', '287.png')):
         im = load(os.path.join(SRC, 'stills', kind, f))
         for size, q in sizes:
             if kind == 'wide':

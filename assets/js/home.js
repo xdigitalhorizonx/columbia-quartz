@@ -99,34 +99,45 @@
   const ctx = canvas.getContext('2d', { alpha: false });
   const planStill = scene.querySelector('.scene-still--plan');
   const planVeil = scene.querySelector('.plan-veil');
-  const elevLayer = scene.querySelector('.scene-layer--elev');
+  // stills that swap in where the camera stops: in over a..b, out over c..d (data-hold="a,b,c,d")
+  const holds = [...scene.querySelectorAll('[data-hold]')].map((el) => ({ el, r: el.dataset.hold.split(',').map(Number), late: el.hasAttribute('data-late') }));
   const beats = [...scene.querySelectorAll('[data-beat]')].map((el) => ({
     el, a: +el.dataset.in, b: +el.dataset.out,
     parts: [...el.querySelectorAll('[data-part]')], hero: el.classList.contains('beat--hero'),
   }));
 
-  // Choreography (scene progress 0..1). The camera starts moving with the first scroll: the plan still
-  // hands over to the rendered frames at once (frame 0 is the same picture), and the move lands on the
-  // elevation still, where the finale and the edge callouts hold.
-  const CAM_A = 0.02, CAM_B = 0.5;
-  const PLAN_OUT = [0.01, 0.025], ELEV_IN = [0.49, 0.52];
-  const SHADE_OUT = [0, 0.12], DARK_IN = [0.48, 0.58];
-  const LINES_IN = [0.58, 0.66], LABELS_IN = [0.62, 0.7];
+  // Choreography (scene progress 0..1). One continuous camera move in three legs (render_move.py):
+  // [start, end, first frame, last frame]. Leg 1 starts with the first scroll: the plan still hands over to
+  // the frames at once (frame 0 is the same picture) and lands on the island's edge, where the edge copy and
+  // callouts hold; leg 2 glides across to the LX Noir sink run, leg 3 pulls back to the whole kitchen. Each
+  // stop swaps in its 4K still (data-hold in index.html) and shows the stones' name tags.
+  const LEGS = [[0.0093, 0.2333, 0, 119], [0.3833, 0.5833, 119, 191], [0.6833, 0.9167, 191, 287]];
+  const PLAN_OUT = [0.0047, 0.0117], SHADE_OUT = [0, 0.056];
+  const DARK = [0.2233, 0.27, 0.36, 0.383];                   // shade under the edge copy: in, out
+  const LINES = [0.27, 0.3067, 0.353, 0.375], LABELS = [0.29, 0.3267, 0.353, 0.375];
+  const TAG_AT = { 119: [0.29, 0.3267, 0.353, 0.375], 191: [0.6, 0.627, 0.66, 0.683], 287: [0.933, 0.96, 2, 2] };
   const BEAT_IN = 0.035, BEAT_OUT = 0.03, PART_STAGGER = 0.01, PART_RISE = 16;
+  const inOut = (r, p) => smooth(r[0], r[1], p) * (1 - smooth(r[2], r[3], p));
+  function frameAt(p) {                      // frames are spaced by camera motion; ease each leg's ends
+    for (let i = LEGS.length - 1; i > 0; i--) if (p >= LEGS[i][0]) return LEGS[i][2] + smooth(LEGS[i][0], LEGS[i][1], p) * (LEGS[i][3] - LEGS[i][2]);
+    return smooth(LEGS[0][0], LEGS[0][1], p) * LEGS[0][3];
+  }
 
-  // Frames arrive as encoded blobs (~7 MB for the whole wide set). Only a small window around the
-  // playhead is decoded, off the main thread, into canvas-sized ImageBitmaps, so a draw is a plain blit.
+  // Frames arrive as encoded blobs, leg by leg. Only a small window around the playhead is decoded, off the
+  // main thread, into canvas-sized ImageBitmaps, so a draw is a plain blit.
   const N = +canvas.dataset.frames;
   const SRC = { wide: canvas.dataset.sizeWide.split('x').map(Number), tall: canvas.dataset.sizeTall.split('x').map(Number) };
   const WINDOW = 7, MAX_DECODES = 1;   // one decode at a time: parallel decodes hitch the main thread on a fast scroll
-  const SAVE_DATA = !!(navigator.connection && navigator.connection.saveData);   // keep the two stills, skip the sequence
+  const SAVE_DATA = !!(navigator.connection && navigator.connection.saveData);   // keep the stills, skip the sequence
   let tall = isTall();
   let blobs = [], bitmaps = new Map(), decoding = new Set(), loadGen = 0, bmpGen = 0, loadingStarted = false;
   let curF = 0, lastDrawn = -1, needsDraw = true, canvasReady = false, cw = 0, ch = 0, crop = [0, 0, 1, 1];
 
-  function frameOrder() {                    // coarse to fine, so scrubbing works before everything lands
-    const order = [0, N - 1], seen = new Set(order);
-    for (let s = 32; s >= 1; s >>= 1) for (let i = 0; i < N; i += s) if (!seen.has(i)) { seen.add(i); order.push(i); }
+  function frameOrder() {                    // the stops first, then leg by leg, each coarse to fine
+    const order = [], seen = new Set();
+    const add = (i) => { if (i < N && !seen.has(i)) { seen.add(i); order.push(i); } };
+    LEGS.forEach((l) => { add(l[2]); add(l[3]); });
+    for (const [, , f0, f1] of LEGS) for (let s = 32; s >= 1; s >>= 1) for (let i = f0; i <= f1; i += s) add(i);
     return order;
   }
   function loadFrames() {
@@ -180,15 +191,21 @@
     lastDrawn = j; needsDraw = false; canvasReady = true;
   }
 
-  /* annotation callouts, in fractions of the last frame (16:9 wide, 9:16 tall); render_move.py --notes
-     projects the front edge into that frame, so these sit exactly on the rendered edge */
+  /* annotation callouts and name tags, in fractions of the hold frames (16:9 wide, 9:16 tall);
+     render_move.py --notes projects the island's front edge and a spot on each stone into those frames,
+     so these sit exactly on the rendered surfaces */
   const notesEl = scene.querySelector('[data-notes]');
   const notesSvg = notesEl.querySelector('svg');
   const noteLabels = Object.fromEntries([...notesEl.querySelectorAll('[data-note]')].map((n) => [n.dataset.note, n]));
   const NOTES = {
-    wide: { aspect: 16 / 9, thickness: { x: 0.12, y0: 0.595, y1: 0.717 }, vein: { x: 0.312, y: 0.648, ex: 0.37, ey: 0.55 } },
-    tall: { aspect: 9 / 16, thickness: { x: 0.2, y0: 0.59, y1: 0.688 }, vein: null },
+    wide: { aspect: 16 / 9, thickness: { x: 0.12, y0: 0.595, y1: 0.717 }, vein: { x: 0.312, y: 0.648, ex: 0.37, ey: 0.55 },
+            tags: { 119: { gold: [0.8252, 0.534] }, 191: { noir: [0.3257, 0.5405] }, 287: { gold: [0.6742, 0.4796], noir: [0.2208, 0.4291] } } },
+    tall: { aspect: 9 / 16, thickness: { x: 0.2, y0: 0.59, y1: 0.688 }, vein: null,
+            tags: { 119: { gold: [0.7425, 0.5699] }, 191: { noir: [0.2293, 0.5128] }, 287: { gold: [0.7677, 0.6854], noir: [0.7094, 0.484] } } },
   };
+  const tagEls = Object.fromEntries([...scene.querySelectorAll('[data-tag]')].map((t) => [t.dataset.tag, t]));
+  const TAG_DOT = 12, TAG_RISE = 62;     // the dot's place in the tag box (home.css .tag)
+  let tagStop = 0, tagPos = {};
   let notePaths = [];
   function layoutNotes() {
     const W = pin.clientWidth, H = pin.clientHeight;
@@ -207,6 +224,16 @@
       place(noteLabels.vein, ex + 22, ey, 'left');
       noteLabels.vein.hidden = false;
     } else noteLabels.vein.hidden = true;
+    tagPos = {};                       // per stop: where each label box goes, its dot on the anchor below it
+    for (const [stop, tags] of Object.entries(cfg.tags)) {
+      tagPos[stop] = {};
+      for (const [name, [fx, fy]] of Object.entries(tags)) {
+        const [x, y] = P(fx, fy), w = tagEls[name].offsetWidth;
+        const flip = x + w - TAG_DOT > W - 16;       // near the right edge the label hangs to the left
+        tagPos[stop][name] = [flip ? x - w + TAG_DOT : x - TAG_DOT, y - TAG_RISE, flip];
+      }
+    }
+    tagStop = 0;
     notesSvg.setAttribute('viewBox', `0 0 ${W} ${H}`);
     notesSvg.innerHTML = svg;
     notePaths = [...notesSvg.querySelectorAll('path, circle')].map((el) => {
@@ -225,8 +252,7 @@
     const r = scene.getBoundingClientRect(), vh = innerHeight;
     if (r.bottom < 0 || r.top > vh) return;
     const p = clamp(-r.top / Math.max(1, r.height - vh));
-    const c = clamp((p - CAM_A) / (CAM_B - CAM_A));
-    const target = smooth(0, 1, c) * (N - 1);   // frames are spaced by camera motion; ease the ends
+    const target = frameAt(p);
     curF = Math.abs(target - curF) > N / 3 ? target : damp(curF, target, 16, dt);
     if (!loadingStarted && p > 0) loadFrames();
     drawFrame(Math.round(curF));
@@ -234,9 +260,14 @@
     if (p === sceneP && !needsDraw) return;
     sceneP = p;
     setStyle(planStill, 'opacity', canvasReady ? String(1 - smooth(PLAN_OUT[0], PLAN_OUT[1], p)) : '1');
-    setStyle(elevLayer, 'opacity', String(smooth(ELEV_IN[0], ELEV_IN[1], p)));
+    for (const h of holds) {
+      // a still leaves only once frames are drawing; without them (Save-Data, slow link) it stays until the next one
+      if (h.late) h.el.classList.toggle('is-near', p > h.r[0] - 0.25);
+      setStyle(h.el, 'opacity', String(canvasReady ? inOut(h.r, p) : smooth(h.r[0], h.r[1], p)));
+    }
     setStyle(planVeil, 'opacity', (1 - smooth(SHADE_OUT[0], SHADE_OUT[1], p)).toFixed(3));
-    pin.style.setProperty('--veil', smooth(DARK_IN[0], DARK_IN[1], p).toFixed(3));
+    pin.style.setProperty('--veil', inOut(DARK, p).toFixed(3));
+    pin.style.setProperty('--veil-tall', (1 - smooth(DARK[2], DARK[3], p)).toFixed(3));
 
     for (const bt of beats) {
       if (bt.hero) {
@@ -257,12 +288,24 @@
       bt.el.inert = any < 0.02;
     }
 
-    const ln = smooth(LINES_IN[0], LINES_IN[1], p), lb = smooth(LABELS_IN[0], LABELS_IN[1], p);
+    const ln = inOut(LINES, p), lb = inOut(LABELS, p);
     notePaths.forEach(({ el, len }) => {
       if (len) setStyle(el, 'strokeDashoffset', String(len * (1 - ln)));
       else setStyle(el, 'opacity', String(ln));
     });
     Object.values(noteLabels).forEach((l) => setStyle(l, 'opacity', String(lb)));
+
+    const stop = p < LEGS[1][0] ? 119 : p < LEGS[2][0] ? 191 : 287;
+    const tv = inOut(TAG_AT[stop], p);
+    for (const [name, el] of Object.entries(tagEls)) {
+      const at = tagPos[stop] && tagPos[stop][name];
+      if (at && stop !== tagStop) {
+        setStyle(el, 'transform', `translate3d(${Math.round(at[0])}px, ${Math.round(at[1])}px, 0)`);
+        el.classList.toggle('is-flip', at[2]);
+      }
+      setStyle(el, 'opacity', at ? tv.toFixed(3) : '0');
+    }
+    tagStop = stop;
   }
 
   /* ---------- scrubbed statement ---------- */

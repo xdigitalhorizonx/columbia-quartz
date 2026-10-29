@@ -4,11 +4,13 @@ Premium quartz surfaces marketing homepage. Static site: `index.html` plus local
 
 ## The hero
 
-Scrolling turns the camera from a top-down plan view of a Calacatta LX Gold island to a
-counter-height profile of its mitred edge. The imagery is a 3D render (Blender, Cycles) of the real
-LX Gold slab, 120 WebP frames drawn to a canvas as you scroll, so the veining and the leaves never
-change between frames. The page opens on the sharp 4K plan still, the move starts with the first
-scroll, and it lands on the 4K elevation still.
+Scrolling moves one camera through one kitchen, in three legs. It cranes down from a top-down plan view
+of a Calacatta LX Gold island to the counter-height profile of its mitred edge, glides across the aisle
+to the sink run in Calacatta LX Noir, then pulls back to show the whole kitchen. The imagery is a 3D
+render (Blender, Cycles) of Columbia's real slabs, 288 WebP frames drawn to a canvas as you scroll, so
+the veining never changes between frames. The page opens on the sharp 4K plan still, the move starts
+with the first scroll, and each stop (edge, sink, kitchen) swaps in its own 4K still with the stones'
+name tags.
 How it was made and how to rebuild it: [`tools/scene/README.md`](tools/scene/README.md).
 
 ## Motion
@@ -18,10 +20,11 @@ The motion language follows digitalhorizon.dev: one `requestAnimationFrame` loop
 velocity marquee and the header. Lenis (`assets/vendor/`) smooths wheel scrolling.
 
 - `prefers-reduced-motion`: no pinning, no Lenis, no reveals. The page renders as a static layout
-  with both stills and all copy visible.
-- Data Saver: the frame sequence is skipped and the scene cross-fades between the two stills.
-- Phones use their own 9:16 render of the move (about 4 MB) instead of the 16:9 set (7.5 MB).
-- Frames load after the page's `load` event, coarse to fine, so scrubbing works before every frame has arrived.
+  with all four stills, their captions and all copy visible.
+- Data Saver: the frame sequence is skipped and the scene cross-fades between the four stills.
+- Phones use their own 9:16 render of the move (about 7.8 MB) instead of the 16:9 set (17.9 MB).
+- Frames load after the page's `load` event, leg by leg and coarse to fine within each, so scrubbing works
+  before every frame has arrived. The sink and kitchen stills load one leg before they are needed.
 
 ## Inspirations page
 

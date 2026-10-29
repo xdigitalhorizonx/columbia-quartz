@@ -213,8 +213,32 @@ html.motion .scroll-cue i::after { animation: drip 2.2s var(--ease) 1.6s 3; }
 }
 .note[hidden] { display: none; }
 
+/* name tags: a dot on the stone, a hairline up to the stone's name (positioned by home.js) */
+.tags { display: none; }
+.tag {
+  position: absolute; left: 0; top: 0; margin: 0; height: 28px; padding: 0 12px; white-space: nowrap;
+  font: 700 10.5px/28px var(--sans); letter-spacing: .22em; text-transform: uppercase; color: var(--cream);
+  background: rgba(12, 11, 9, .55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border: 1px solid var(--hair);
+}
+.tag b { font-weight: 700; }
+.tag span { color: var(--gold-soft); margin-left: .9em; }
+.tag::after { content: ""; position: absolute; left: 11px; top: 28px; width: 1px; height: 34px; background: var(--gold-soft); }
+.tag::before { content: ""; position: absolute; left: 7px; top: 58px; width: 9px; height: 9px; border-radius: 50%; background: var(--gold-soft); box-shadow: 0 0 0 5px rgba(12, 11, 9, .32); }
+.tag.is-flip::after { left: auto; right: 11px; }
+.tag.is-flip::before { left: auto; right: 7px; }
+/* without the pinned scene each stop is a plain photo with its caption */
+.hold-cap {
+  position: absolute; left: var(--gutter); bottom: clamp(24px, 5vh, 48px); margin: 0; z-index: 2;
+  font: 700 11px/1.5 var(--sans); letter-spacing: .22em; text-transform: uppercase; color: var(--cream);
+  padding: 9px 14px; background: rgba(12, 11, 9, .6);
+}
+.hold-cap span { color: var(--gold-soft); margin-left: .6em; }
+.hold-cap i { font-style: normal; color: var(--fg-muted, #b7afa2); margin: 0 .7em; }
+
 /* static scene (reduced motion / no JS): plan + hero, then the elevation + edge copy */
-html:not(.motion) .scene-pin { display: grid; grid-template-columns: 100%; grid-template-areas: "plan" "elev"; }
+html:not(.motion) .scene-pin { display: grid; grid-template-columns: 100%; grid-template-areas: "plan" "elev" "sink" "kitchen"; }
+html:not(.motion) .scene-layer--sink { grid-area: sink; }
+html:not(.motion) .scene-layer--kitchen { grid-area: kitchen; }
 html:not(.motion) .scene-layer--plan { grid-area: plan; }
 html:not(.motion) .beat--hero { grid-area: plan; position: relative; align-self: start; }
 html:not(.motion) .scene-layer--elev { grid-area: elev; }
@@ -223,12 +247,16 @@ html:not(.motion) .notes { display: none; }
 html:not(.motion) .scroll-cue { display: none; }
 
 /* ---------- pinned scene (motion only) ---------- */
-html.motion .scene { height: 240vh; }
+html.motion .scene { height: 400vh; }
 html.motion .scene-pin { position: sticky; top: 0; height: 100svh; min-height: 520px; }
 html.motion .scene-layer { position: absolute; inset: 0; height: auto; min-height: 0; }
 html.motion .scene-canvas { display: block; }
 html.motion .plan-veil, html.motion .scene-veil { will-change: opacity; }   /* fade on the compositor; the masked veil never repaints */
-html.motion .scene-layer--elev { opacity: 0; }
+html.motion [data-hold] { opacity: 0; }
+html.motion [data-late]:not(.is-near) { display: none; }     /* late stills load one leg before they are needed */
+html.motion .hold-cap { display: none; }
+html.motion .tags { display: block; position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+html.motion .tag { opacity: 0; will-change: opacity; }
 html.motion .scene-layer--elev::after { display: none; }
 html.motion .scene-veil {
   display: block; position: absolute; inset: 0; z-index: 1; pointer-events: none;
@@ -447,13 +475,15 @@ html.paused *, html.paused *::before, html.paused *::after { animation-play-stat
   .beat--hero .hero-actions { margin-top: 26px; }
   .plan-veil { display: none; }
   .scene-layer--plan::after { content: ""; position: absolute; inset: 25% 0 0; background: linear-gradient(180deg, rgba(10, 9, 7, 0), rgba(10, 9, 7, .8) 45%, rgba(10, 9, 7, .92)); }
-  html.motion .scene { height: 230vh; }
+  html.motion .scene { height: 380vh; }
   html.motion .scene-layer--plan::after { display: none; }
-  html.motion .scene-veil { opacity: 1; background: linear-gradient(0deg, rgba(10, 9, 7, .92) 0%, rgba(10, 9, 7, .82) 34%, rgba(10, 9, 7, .45) 52%, rgba(10, 9, 7, 0) 68%), linear-gradient(180deg, rgba(10, 9, 7, .55) 0%, rgba(10, 9, 7, 0) 18%); }
+  html.motion .scene-veil { opacity: var(--veil-tall, 1); background: linear-gradient(0deg, rgba(10, 9, 7, .92) 0%, rgba(10, 9, 7, .82) 34%, rgba(10, 9, 7, .45) 52%, rgba(10, 9, 7, 0) 68%), linear-gradient(180deg, rgba(10, 9, 7, .55) 0%, rgba(10, 9, 7, 0) 18%); }
   .beat--final { grid-template-columns: 1fr; padding-bottom: clamp(30px, 5vh, 56px); }
   .beat--final .beat-title--lg { grid-row: auto; font-size: clamp(1.9rem, 8.4vw, 2.6rem); }
   .beat--final .beat-text { display: none; }
   .beat--final .link-line { grid-column: 1; grid-row: auto; }
+  .hold-cap i { display: block; height: 0; overflow: hidden; }
+  .tag { letter-spacing: .18em; }
 }
 
 @media (prefers-reduced-motion: reduce) {
