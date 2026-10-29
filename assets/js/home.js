@@ -1,6 +1,6 @@
 /* Columbia Quartz homepage.
    One requestAnimationFrame loop drives everything (the digitalhorizon.dev pattern): the scrubbed
-   plan-to-elevation frame sequence, story beats, veils, annotations, the scrubbed statement, parallax,
+   plan-to-elevation move between the two photos, hero and finale copy, veils, annotations, the scrubbed statement, parallax,
    the velocity marquee and the header. Lenis smooths wheel input and is built lazily.
    html.motion (set before first paint) gates every animated state; without it the page is static. */
 (() => {
@@ -95,9 +95,7 @@
   /* ---------- the scene ---------- */
   const scene = document.querySelector('[data-scene]');
   const pin = scene.querySelector('.scene-pin');
-  const canvas = scene.querySelector('.scene-canvas');
-  const ctx = canvas.getContext('2d', { alpha: false });
-  const planStill = scene.querySelector('.scene-still--plan');
+  const planLayer = scene.querySelector('.scene-layer--plan');
   const planVeil = scene.querySelector('.plan-veil');
   const elevLayer = scene.querySelector('.scene-layer--elev');
   const beats = [...scene.querySelectorAll('[data-beat]')].map((el) => ({
@@ -105,80 +103,18 @@
     parts: [...el.querySelectorAll('[data-part]')], hero: el.classList.contains('beat--hero'),
   }));
 
-  // Choreography (scene progress 0..1). The camera starts moving with the first scroll: the plan still
-  // hands over to the clip at once, and the move lands on the elevation still, where the finale and the
-  // edge callouts hold.
-  const CAM_A = 0.02, CAM_B = 0.5;
-  const PLAN_OUT = [0.01, 0.025], ELEV_IN = [0.49, 0.52];
-  const SHADE_OUT = [0, 0.12], DARK_IN = [0.48, 0.58];
+  // Choreography (scene progress 0..1). The move starts with the first scroll: the plan photo tilts
+  // away as if the camera were craning down, then a short film dissolve lands on the elevation photo,
+  // where the finale and the edge callouts hold. Both are the real 4K stills and nothing is ever
+  // redrawn, so the veining and the leaves cannot change.
+  const TILT = [0.02, 0.4];        // plan photo tilts away and pushes in
+  const SWAP = [0.3, 0.4];         // dissolve
+  const LAND = [0.3, 0.5];         // elevation photo settles, easing out
+  const SHADE_OUT = [0, 0.12], DARK_IN = [0.46, 0.56];
   const LINES_IN = [0.58, 0.66], LABELS_IN = [0.62, 0.7];
   const BEAT_IN = 0.035, BEAT_OUT = 0.03, PART_STAGGER = 0.01, PART_RISE = 16;
-
-  // Frames arrive as encoded blobs (~7 MB for the whole wide set). Only a small window around the
-  // playhead is decoded, off the main thread, into canvas-sized ImageBitmaps, so a draw is a plain blit.
-  const N = +canvas.dataset.frames;
-  const SRC = { wide: canvas.dataset.sizeWide.split('x').map(Number), tall: canvas.dataset.sizeTall.split('x').map(Number) };
-  const WINDOW = 7, MAX_DECODES = 1;   // one decode at a time: parallel decodes hitch the main thread on the short, fast move
-  const SAVE_DATA = !!(navigator.connection && navigator.connection.saveData);   // keep the two stills, skip the sequence
+  const span = (r, p) => clamp((p - r[0]) / (r[1] - r[0]));
   let tall = isTall();
-  let blobs = [], bitmaps = new Map(), decoding = new Set(), loadGen = 0, bmpGen = 0, loadingStarted = false;
-  let curF = 0, lastDrawn = -1, needsDraw = true, canvasReady = false, cw = 0, ch = 0, crop = [0, 0, 1, 1];
-
-  function frameOrder() {                    // coarse to fine, so scrubbing works before everything lands
-    const order = [0, N - 1], seen = new Set(order);
-    for (let s = 32; s >= 1; s >>= 1) for (let i = 0; i < N; i += s) if (!seen.has(i)) { seen.add(i); order.push(i); }
-    return order;
-  }
-  function loadFrames() {
-    loadingStarted = true;
-    if (SAVE_DATA) return;
-    const gen = ++loadGen, dir = tall ? canvas.dataset.framesTall : canvas.dataset.framesWide;
-    blobs = new Array(N); dropBitmaps();
-    const queue = frameOrder(); let active = 0;
-    const pump = () => {
-      while (active < 6 && queue.length) {
-        const i = queue.shift(); active++;
-        fetch(`${dir}${String(i).padStart(3, '0')}.webp?v=${canvas.dataset.rev}`).then((r) => (r.ok ? r.blob() : null)).then((b) => {
-          if (gen === loadGen && b) blobs[i] = b;
-        }).catch(() => {}).finally(() => { active--; if (gen === loadGen) pump(); });
-      }
-    };
-    pump();
-  }
-  function dropBitmaps() {
-    bmpGen++; bitmaps.forEach((b) => b.close()); bitmaps.clear(); decoding.clear();
-    lastDrawn = -1; needsDraw = true; canvasReady = false;
-  }
-  function sizeCanvas() {
-    const w = pin.clientWidth, h = pin.clientHeight, [iw, ih] = tall ? SRC.tall : SRC.wide;
-    const s = Math.max(w / iw, h / ih);                         // CSS px per source px (cover)
-    const scale = Math.min(window.devicePixelRatio || 1, 2, 1 / s); // never upsample in the backing store
-    cw = Math.round(w * scale); ch = Math.round(h * scale);
-    canvas.width = cw; canvas.height = ch;
-    const sw = w / s, sh = h / s; crop = [(iw - sw) / 2, (ih - sh) / 2, sw, sh];
-    dropBitmaps();
-  }
-  function decodeAround(center) {
-    const g = bmpGen;
-    for (let d = 0; d <= WINDOW && decoding.size < MAX_DECODES; d++) {
-      for (const i of d ? [center + d, center - d] : [center]) {
-        if (i < 0 || i >= N || !blobs[i] || bitmaps.has(i) || decoding.has(i) || decoding.size >= MAX_DECODES) continue;
-        decoding.add(i);
-        createImageBitmap(blobs[i], crop[0], crop[1], crop[2], crop[3], { resizeWidth: cw, resizeHeight: ch, resizeQuality: 'high' })
-          .then((bmp) => { if (g !== bmpGen) return bmp.close(); bitmaps.set(i, bmp); needsDraw = true; })
-          .catch(() => {}).finally(() => decoding.delete(i));
-      }
-    }
-    bitmaps.forEach((b, i) => { if (Math.abs(i - center) > WINDOW + 2) { b.close(); bitmaps.delete(i); } });
-  }
-  function drawFrame(idx) {
-    decodeAround(idx);
-    let j = -1;
-    for (let d = 0; d < N && j < 0; d++) { if (bitmaps.has(idx - d)) j = idx - d; else if (bitmaps.has(idx + d)) j = idx + d; }
-    if (j < 0 || (j === lastDrawn && !needsDraw)) return;
-    ctx.drawImage(bitmaps.get(j), 0, 0);
-    lastDrawn = j; needsDraw = false; canvasReady = true;
-  }
 
   /* annotation callouts, placed in elevation-image coordinates (fractions of the 16:9 master) */
   const notesEl = scene.querySelector('[data-notes]');
@@ -222,20 +158,24 @@
   }
 
   let sceneP = -1;
-  function updateScene(dt) {
+  function updateScene() {
     const r = scene.getBoundingClientRect(), vh = innerHeight;
     if (r.bottom < 0 || r.top > vh) return;
     const p = clamp(-r.top / Math.max(1, r.height - vh));
-    const c = clamp((p - CAM_A) / (CAM_B - CAM_A));
-    const target = smooth(0, 1, c) * (N - 1);   // frames are spaced by camera motion; ease the ends
-    curF = Math.abs(target - curF) > N / 3 ? target : damp(curF, target, 16, dt);
-    if (!loadingStarted && p > 0) loadFrames();
-    drawFrame(Math.round(curF));
-
-    if (p === sceneP && !needsDraw) return;
+    if (p === sceneP) return;
     sceneP = p;
-    setStyle(planStill, 'opacity', canvasReady ? String(1 - smooth(PLAN_OUT[0], PLAN_OUT[1], p)) : '1');
-    setStyle(elevLayer, 'opacity', String(smooth(ELEV_IN[0], ELEV_IN[1], p)));
+
+    // the move: transforms are cleared at rest so both photos render at full sharpness.
+    // 28deg about the island's front edge; the 1.36 push keeps the receding top edge past the frame.
+    const e = smooth(TILT[0], TILT[1], p);
+    setStyle(planLayer, 'transform', e > 0 ? `perspective(1600px) rotateX(${(e * 28).toFixed(2)}deg) translate3d(0, ${(-e * 4).toFixed(2)}%, 0) scale(${(1 + e * 0.36).toFixed(4)})` : 'none');
+    const sw = smooth(SWAP[0], SWAP[1], p);
+    setStyle(planLayer, 'opacity', (1 - sw).toFixed(3));
+    setStyle(planLayer, 'filter', sw > 0 && sw < 1 ? `blur(${(sw * 5).toFixed(2)}px)` : 'none');
+    const u = span(LAND, p), o = 1 - (1 - u) ** 3, rest = 1 - o;
+    setStyle(elevLayer, 'transform', rest > 0 ? `perspective(1600px) rotateX(${(-rest * 9).toFixed(2)}deg) translate3d(0, ${(rest * 4).toFixed(2)}%, 0) scale(${(1 + rest * 0.12).toFixed(4)})` : 'none');
+    setStyle(elevLayer, 'opacity', sw.toFixed(3));
+    setStyle(elevLayer, 'filter', rest > 0.02 && sw > 0 ? `blur(${(rest * 5).toFixed(2)}px)` : 'none');
     setStyle(planVeil, 'opacity', (1 - smooth(SHADE_OUT[0], SHADE_OUT[1], p)).toFixed(3));
     pin.style.setProperty('--veil', smooth(DARK_IN[0], DARK_IN[1], p).toFixed(3));
 
@@ -374,7 +314,7 @@
     const velocity = lenis ? lenis.velocity : (y - lastScroll) / Math.max(dt * 60, 1e-3);
     lastScroll = y;
     if (MOTION) {
-      updateScene(dt);
+      updateScene();
       updateStatement();
       updateParallax();
       updateMarquee(dt, velocity);
@@ -387,19 +327,15 @@
   function onResize() {
     const nowTall = isTall();
     if (MOTION) {
-      if (nowTall !== tall) { tall = nowTall; sizeCanvas(); if (loadingStarted) loadFrames(); } else sizeCanvas(); layoutNotes(); half = 0; sceneP = -1;
+      tall = nowTall; layoutNotes(); half = 0; sceneP = -1;
     }
   }
   let rz = 0;
   addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(onResize, 120); });
 
   if (MOTION) {
-    sizeCanvas();
     document.fonts.ready.then(layoutNotes);
     layoutNotes();
-    // frames start after the hero has painted, or as soon as the visitor scrolls
-    const kick = () => { if (!loadingStarted) loadFrames(); };
-    if (document.readyState === 'complete') setTimeout(kick, 300); else addEventListener('load', () => setTimeout(kick, 300), { once: true });
   }
   html.classList.add('ready');
   requestAnimationFrame(frame);

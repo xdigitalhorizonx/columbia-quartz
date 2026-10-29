@@ -149,11 +149,7 @@ em { font-style: italic; }
 .scene { position: relative; background: var(--ink); }
 .scene-pin { position: relative; overflow: hidden; }
 .scene-layer { position: relative; height: 100svh; min-height: 520px; overflow: hidden; }
-.scene-still, .scene-canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-/* the 4K photo sits above the frame canvas and fades out only once the move starts, so the first
-   view is always the sharp still, never a 1080p clip frame */
-.scene-still--plan { z-index: 1; }
-.scene-canvas { display: none; }
+.scene-still { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .scene-veil { display: none; }
 /* soft shade over the left of the plan view, so the cream hero copy never sits on bright veins or
    gold; it reads as the room's shadow, not an overlay */
@@ -226,8 +222,10 @@ html:not(.motion) .scroll-cue { display: none; }
 html.motion .scene { height: 240vh; }
 html.motion .scene-pin { position: sticky; top: 0; height: 100svh; min-height: 520px; }
 html.motion .scene-layer { position: absolute; inset: 0; height: auto; min-height: 0; }
-html.motion .scene-canvas { display: block; }
-html.motion .plan-veil, html.motion .scene-veil { will-change: opacity; }   /* fade on the compositor; the masked veil never repaints */
+html.motion .plan-veil, html.motion .scene-veil { will-change: opacity; }   /* fades run on the compositor */
+/* the two photos tilt, push and dissolve on the compositor; transforms are cleared at rest */
+html.motion .scene-layer--plan { transform-origin: 50% 72%; will-change: transform, opacity, filter; }
+html.motion .scene-layer--elev { transform-origin: 50% 55%; will-change: transform, opacity, filter; }
 html.motion .scene-layer--elev { opacity: 0; }
 html.motion .scene-layer--elev::after { display: none; }
 html.motion .scene-veil {

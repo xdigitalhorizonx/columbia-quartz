@@ -5,10 +5,9 @@ Premium quartz surfaces marketing homepage. Static site: `index.html` plus local
 ## The hero
 
 Scrolling turns the camera from a top-down plan view of a Calacatta LX Gold island to a
-counter-height profile of its mitred edge. The imagery is photographic (AI-generated stills and
-an image-to-video camera move, cut into 72 WebP frames), drawn to a canvas as you scroll. The page
-opens on the sharp 4K plan still, the move starts with the first scroll, and it lands on the 4K
-elevation still.
+counter-height profile of its mitred edge, using two 4K photographs (AI-generated stills) and no
+video. From the first scroll the plan photo tilts away and pushes in, then a short dissolve lands on
+the elevation photo, so the veining and the leaves never change.
 How it was made and how to rebuild it: [`tools/scene/README.md`](tools/scene/README.md).
 
 ## Motion
@@ -19,9 +18,9 @@ velocity marquee and the header. Lenis (`assets/vendor/`) smooths wheel scrollin
 
 - `prefers-reduced-motion`: no pinning, no Lenis, no reveals. The page renders as a static layout
   with both stills and all copy visible.
-- Data Saver: the frame sequence is skipped and the scene cross-fades between the two stills.
-- Phones use a separate portrait frame set (2.7 MB) instead of the 16:9 set (7.6 MB).
-- Frames load after the page's `load` event, coarse to fine, so scrubbing works before every frame has arrived.
+- Phones get portrait crops of both stills (`plan-portrait-*`, `elevation-portrait-*`).
+- The tilt, push and dissolve are transforms, opacity and a light blur on the two photo layers,
+  so they run on the compositor. Transforms are cleared at rest, so both photos render sharp.
 
 ## Inspirations page
 
