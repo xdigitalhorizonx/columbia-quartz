@@ -11,6 +11,9 @@ render (Blender, Cycles) of Columbia's real slabs, 288 WebP frames drawn to a ca
 the veining never changes between frames. The page opens on the sharp 4K plan still, the move starts
 with the first scroll, and each stop (edge, sink, kitchen) swaps in its own 4K still with the stones'
 name tags.
+Six numbered story beats ride along in the lower band over a shared dark veil (island, edge, durability,
+sink run, pairing, whole kitchen); their scroll windows are the `data-in` / `data-out` values in
+`index.html`. On phones the edge and whole-kitchen beats drop their paragraph so the callouts stay clear.
 How it was made and how to rebuild it: [`tools/scene/README.md`](tools/scene/README.md).
 
 ## Motion

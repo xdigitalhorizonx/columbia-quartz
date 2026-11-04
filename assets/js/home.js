@@ -113,7 +113,8 @@
   // stop swaps in its 4K still (data-hold in index.html) and shows the stones' name tags.
   const LEGS = [[0.0093, 0.2333, 0, 119], [0.3833, 0.5833, 119, 191], [0.6833, 0.9167, 191, 287]];
   const PLAN_OUT = [0.0047, 0.0117], SHADE_OUT = [0, 0.056];
-  const DARK = [0.2233, 0.27, 0.36, 0.383];                   // shade under the edge copy: in, out
+  // the shade under the story copy leads each beat in and trails it out, so back-to-back beats share one veil
+  const VEIL_LEAD = 0.035, VEIL_TRAIL = 0.02;
   const LINES = [0.27, 0.3067, 0.353, 0.375], LABELS = [0.29, 0.3267, 0.353, 0.375];
   const TAG_AT = { 119: [0.29, 0.3267, 0.353, 0.375], 191: [0.6, 0.627, 0.66, 0.683], 287: [0.933, 0.96, 2, 2] };
   const BEAT_IN = 0.035, BEAT_OUT = 0.03, PART_STAGGER = 0.01, PART_RISE = 16;
@@ -266,17 +267,18 @@
       setStyle(h.el, 'opacity', String(canvasReady ? inOut(h.r, p) : smooth(h.r[0], h.r[1], p)));
     }
     setStyle(planVeil, 'opacity', (1 - smooth(SHADE_OUT[0], SHADE_OUT[1], p)).toFixed(3));
-    pin.style.setProperty('--veil', inOut(DARK, p).toFixed(3));
-    pin.style.setProperty('--veil-tall', (1 - smooth(DARK[2], DARK[3], p)).toFixed(3));
 
+    let veil = 0, heroShade = 0;
     for (const bt of beats) {
       if (bt.hero) {
         const out = smooth(0, bt.b, p);
         setStyle(bt.el, 'transform', `translate3d(0, ${(-90 * out).toFixed(1)}px, 0)`);
         setStyle(bt.el, 'opacity', String(clamp(1 - 1.15 * out)));
         bt.el.inert = out > 0.98;
+        heroShade = 1 - smooth(bt.b, bt.b + VEIL_LEAD, p);
         continue;
       }
+      veil = Math.max(veil, smooth(bt.a - VEIL_LEAD, bt.a + 0.005, p) * (1 - smooth(bt.b - 0.01, bt.b + VEIL_TRAIL, p)));
       let any = 0;
       bt.parts.forEach((el, k) => {
         const vin = smooth(bt.a + k * PART_STAGGER, bt.a + k * PART_STAGGER + BEAT_IN, p);
@@ -287,6 +289,8 @@
       });
       bt.el.inert = any < 0.02;
     }
+    pin.style.setProperty('--veil', veil.toFixed(3));
+    pin.style.setProperty('--veil-tall', Math.max(veil, heroShade).toFixed(3));   // phones: the hero copy sits low too
 
     const ln = inOut(LINES, p), lb = inOut(LABELS, p);
     notePaths.forEach(({ el, len }) => {
