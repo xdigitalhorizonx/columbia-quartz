@@ -6,7 +6,7 @@ Premium quartz surfaces marketing homepage. Static site: `index.html` plus local
 
 Scrolling moves one camera through one kitchen, in three legs. It cranes down from a top-down plan view
 of a Calacatta LX Gold island to the counter-height profile of its mitred edge, glides across the aisle
-to the sink run in Calacatta LX Noir, then pulls back to show the whole kitchen. The imagery is a 3D
+to the sink run in Calacatta LX Noir under walnut wall cabinets, then pulls back to show the whole kitchen. The imagery is a 3D
 render (Blender, Cycles) of Columbia's real slabs, 288 WebP frames drawn to a canvas as you scroll, so
 the veining never changes between frames. The page opens on the sharp 4K plan still, the move starts
 with the first scroll, and each stop (edge, sink, kitchen) swaps in its own 4K still with the stones'
@@ -25,7 +25,7 @@ velocity marquee and the header. Lenis (`assets/vendor/`) smooths wheel scrollin
 - `prefers-reduced-motion`: no pinning, no Lenis, no reveals. The page renders as a static layout
   with all four stills, their captions and all copy visible.
 - Data Saver: the frame sequence is skipped and the scene cross-fades between the four stills.
-- Phones use their own 9:16 render of the move (about 7.8 MB) instead of the 16:9 set (17.9 MB).
+- Phones use their own 9:16 render of the move (about 8.8 MB) instead of the 16:9 set (20.1 MB).
 - Frames load after the page's `load` event, leg by leg and coarse to fine within each, so scrubbing works
   before every frame has arrived. The sink and kitchen stills load one leg before they are needed.
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Renders everything the homepage needs from scene.blend, then exports the WebP sets.
 #   bash tools/scene/render_all.sh [src]      (src defaults to C:/dev/columbia-quartz-source/3d)
-# About two hours on an RTX 3070 Ti: the four hold stills (plan, island edge, sink, kitchen) at 4K for both
+# About two hours on an RTX 4070 SUPER: the four hold stills (plan, island edge, sink, kitchen) at 4K for both
 # framings, then the 288-frame move at 1920x1080 and 720x1280. NOTES lines (for home.js) go to render.log.
 # Run one at a time: two Blender renders on one GPU each take twice as long.
 set -euo pipefail

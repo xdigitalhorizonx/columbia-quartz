@@ -2,7 +2,8 @@
 #   blender -b --factory-startup --python tools/scene/build_scene.py -- --src C:/dev/columbia-quartz-source/3d
 # <src> holds assets/ (CC0 scans and textures, see README) and tex/ (Columbia's slab photos, upscaled 4x).
 # Units are metres, Z up. The island runs along X; its front edge (-Y) faces the camera at the end of the
-# first move. The sink run in Calacatta LX Noir lines the left wall (-X), facing the island across the aisle.
+# first move. The sink run in Calacatta LX Noir lines the left wall (-X), facing the island across the aisle,
+# under walnut wall cabinets that run to the ceiling.
 import bpy, bmesh, math, os, random, sys
 from mathutils import Vector, Euler, Matrix, noise as mnoise
 
@@ -245,9 +246,22 @@ c.seed = 11
 c.film_exposure = 1.0
 scene.view_settings.view_transform = 'AgX'
 scene.view_settings.look = 'AgX - Punchy'
+scene.view_settings.exposure = 0.2
 scene.render.film_transparent = False
 scene.render.image_settings.file_format = 'PNG'
 scene.render.image_settings.color_depth = '16'
+# a lens's soft halation around the windows. Its size is relative to the frame, so the 4K stills and the
+# smaller frames that stand in for them glow alike.
+comp = bpy.data.node_groups.new('Compositing', 'CompositorNodeTree')
+scene.compositing_node_group = comp
+comp.interface.new_socket(name='Image', in_out='OUTPUT', socket_type='NodeSocketColor')
+crl = comp.nodes.new('CompositorNodeRLayers')
+cgl = comp.nodes.new('CompositorNodeGlare')
+cgl.inputs['Type'].default_value = 'Fog Glow'; cgl.inputs['Quality'].default_value = 'High'
+cgl.inputs['Threshold'].default_value = 1.4; cgl.inputs['Smoothness'].default_value = 0.4
+cgl.inputs['Strength'].default_value = 0.18; cgl.inputs['Size'].default_value = 0.6
+cgo = comp.nodes.new('NodeGroupOutput')
+comp.links.new(crl.outputs['Image'], cgl.inputs['Image']); comp.links.new(cgl.outputs['Image'], cgo.inputs[0])
 
 
 # ---------- world: a real outdoor HDRI, seen blown out through the windows ----------
@@ -261,9 +275,9 @@ wl.new(wtc.outputs['Generated'], wmap.inputs['Vector']); wl.new(wmap.outputs['Ve
 cap = wn.new('ShaderNodeVectorMath'); cap.operation = 'MINIMUM'; cap.inputs[1].default_value = (3.0, 3.0, 3.0)
 wl.new(env.outputs['Color'], cap.inputs[0])       # the sun lamp lights the room; clip the HDRI's own sun
 bg = wn.new('ShaderNodeBackground'); bg.inputs['Strength'].default_value = 1.0
-seen = wn.new('ShaderNodeBackground'); seen.inputs['Strength'].default_value = 5.0
+seen = wn.new('ShaderNodeBackground'); seen.inputs['Strength'].default_value = 4.0
 wl.new(cap.outputs['Vector'], bg.inputs['Color'])
-haze = wn.new('ShaderNodeMix'); haze.data_type = 'RGBA'; haze.inputs['Factor'].default_value = 0.55
+haze = wn.new('ShaderNodeMix'); haze.data_type = 'RGBA'; haze.inputs['Factor'].default_value = 0.4
 wl.new(cap.outputs['Vector'], haze.inputs[6]); haze.inputs[7].default_value = (1.0, 0.93, 0.82, 1)
 wl.new(haze.outputs[2], seen.inputs['Color'])
 lp = wn.new('ShaderNodeLightPath')
@@ -389,14 +403,33 @@ fluted_panel('Flutes', BX0, BX1, BY0 + 0.012, BZ0 + 0.004, BZ1 - 0.002)
 
 
 # ---------- room ----------
-plaster, pn, pl = new_mat('Plaster')
-pp = principled(pn)
-ln = map_range(pn, pl, noise(pn, pl, 2.5, 4), 0.93, 1.04)
-pc = pn.new('ShaderNodeCombineColor')
-for i, v in enumerate((0.5, 0.465, 0.415)): pl.new(math_node(pn, pl, 'MULTIPLY', ln, v), pc.inputs[i])
-pl.new(pc.outputs['Color'], pp.inputs['Base Color'])
-pp.inputs['Roughness'].default_value = 0.92
-pl.new(bump(pn, pl, noise(pn, pl, 180, 4), 0.08, 0.002), pp.inputs['Normal'])
+# Limewashed plaster: the warm greige is ours; the trowel marks, the cloudy tone of hand-applied lime and
+# the slightly uneven sheen come from a real plaster scan (ambientCG Plaster001), boxed so it never stretches.
+PLAS = os.path.join(A, 'plaster', 'Plaster001')
+def plaster_mat(name, tone, tile=1.6):
+    m, n, l = new_mat(name)
+    p = principled(n)
+    tc = n.new('ShaderNodeTexCoord'); mp = n.new('ShaderNodeMapping')
+    mp.inputs['Scale'].default_value = (1 / tile,) * 3
+    l.new(tc.outputs['Object'], mp.inputs['Vector'])
+    def scan(kind, srgb):
+        t = img(n, os.path.join(PLAS, f'Plaster001_2K-JPG_{kind}.jpg'), srgb)
+        t.projection = 'BOX'; t.projection_blend = 0.25
+        l.new(mp.outputs['Vector'], t.inputs['Vector'])
+        return t
+    bw = n.new('ShaderNodeRGBToBW'); l.new(scan('Color', True).outputs['Color'], bw.inputs['Color'])
+    cloud = map_range(n, l, bw.outputs['Val'], 0.9, 1.06, 0.57, 0.75)     # the scan's mottling, kept gentle
+    wash = map_range(n, l, noise(n, l, 0.7, 3), 0.95, 1.04)               # broad, uneven coats of lime
+    lum = math_node(n, l, 'MULTIPLY', cloud, wash)
+    pc = n.new('ShaderNodeCombineColor')
+    for i, v in enumerate(tone): l.new(math_node(n, l, 'MULTIPLY', lum, v), pc.inputs[i])
+    l.new(pc.outputs['Color'], p.inputs['Base Color'])
+    l.new(map_range(n, l, scan('Roughness', False).outputs['Color'], 0.8, 0.95, 0.72, 0.84), p.inputs['Roughness'])
+    nm = n.new('ShaderNodeNormalMap'); nm.inputs['Strength'].default_value = 0.35
+    l.new(scan('NormalGL', False).outputs['Color'], nm.inputs['Color']); l.new(nm.outputs['Normal'], p.inputs['Normal'])
+    return m
+
+plaster = plaster_mat('Plaster', (0.56, 0.525, 0.47))
 
 floor, fn, fl_ = new_mat('Herringbone oak, ebonised')
 fp = principled(fn)
@@ -407,7 +440,7 @@ def ftex(suffix, srgb):
     n = img(fn, os.path.join(A, 'parquet', f'herringbone_parquet_{suffix}_2k.jpg'), srgb)
     fl_.new(fmap.outputs['Vector'], n.inputs['Vector']); return n
 fd = ftex('diff', True)
-fl_.new(mix(fn, fl_, fd.outputs['Color'], (0.12, 0.085, 0.07), 'MULTIPLY'), fp.inputs['Base Color'])
+fl_.new(mix(fn, fl_, fd.outputs['Color'], (0.16, 0.115, 0.09), 'MULTIPLY'), fp.inputs['Base Color'])
 fr = ftex('rough', False)
 fl_.new(map_range(fn, fl_, fr.outputs['Color'], 0.32, 0.6), fp.inputs['Roughness'])
 fnm = ftex('nor_gl', False); fnn = fn.new('ShaderNodeNormalMap'); fnn.inputs['Strength'].default_value = 0.8
@@ -420,14 +453,25 @@ fl.data.materials.append(floor)
 
 RX0, RX1, RY0, RY1, RZ = -3.25, 2.3, -4.1, 3.2, 3.05
 SINK = (RX0 + 0.335, -0.35)          # sink basin centre, in the run along the left wall
-# left wall, with a steel-framed window over the sink (its sill is the backsplash ledge, see the sink run)
-WIN_Y, WIN_Z = (SINK[1] - 0.62, SINK[1] + 0.62), (TOP_Z + 0.62, 2.66)
-box('Wall left low', RX0 - 0.2, RX0, RY0, RY1, 0, WIN_Z[0], plaster)
-box('Wall left head', RX0 - 0.2, RX0, RY0, RY1, WIN_Z[1], RZ, plaster)
-box('Wall left front', RX0 - 0.2, RX0, RY0, WIN_Y[0], WIN_Z[0], WIN_Z[1], plaster)
-box('Wall left back', RX0 - 0.2, RX0, WIN_Y[1], RY1, WIN_Z[0], WIN_Z[1], plaster)
+# left wall: the sink run, with walnut wall cabinets above it to the ceiling (see the sink run)
+box('Wall left', RX0 - 0.2, RX0, RY0, RY1, 0, RZ, plaster)
 ceil = box('Ceiling', RX0, RX1 + 0.07, RY0, RY1 + 0.25, RZ, RZ + 0.2, plaster)
 ceil.visible_camera = False          # the plan camera sits above ceiling height; render_move.py shows it later
+# window glass: a faint, sharp reflection of the room for the camera (strongest at a grazing angle, as on
+# the glass wall at the right), but shadow and bounce rays pass straight through, so daylight is unchanged
+wglass, wgn, wgl = new_mat('Window glass')
+for nd in list(wgn):
+    if nd.type != 'OUTPUT_MATERIAL': wgn.remove(nd)
+wtr = wgn.new('ShaderNodeBsdfTransparent')
+wgs = wgn.new('ShaderNodeBsdfGlossy'); wgs.inputs['Roughness'].default_value = 0.01
+wfr = wgn.new('ShaderNodeFresnel'); wfr.inputs['IOR'].default_value = 1.6        # two panes
+wlp = wgn.new('ShaderNodeLightPath')
+wseen = math_node(wgn, wgl, 'MAXIMUM', wlp.outputs['Is Camera Ray'], wlp.outputs['Is Glossy Ray'])
+wms = wgn.new('ShaderNodeMixShader')
+wgl.new(math_node(wgn, wgl, 'MULTIPLY', wfr.outputs['Fac'], wseen), wms.inputs['Fac'])
+wgl.new(wtr.outputs['BSDF'], wms.inputs[1]); wgl.new(wgs.outputs['BSDF'], wms.inputs[2])
+wgl.new(wms.outputs['Shader'], next(n for n in wgn if n.type == 'OUTPUT_MATERIAL').inputs['Surface'])
+
 # the right side of the room is open glazing (out of shot): the low sun comes in from there
 bpy.ops.object.light_add(type='AREA', location=(RX1 + 0.4, -0.45, 1.6), rotation=(0, math.radians(90), 0))
 side = bpy.context.active_object; side.name = 'Side glazing portal'
@@ -438,6 +482,7 @@ for y in (-2.6, -1.05, 0.5, 2.95):
     box(f'Side glazing mullion {y}', RX1, RX1 + 0.07, y - 0.025, y + 0.025, 0.0, RZ, black)
 box('Side glazing sill', RX1, RX1 + 0.07, RY0, RY1, 0.0, 0.05, black)
 box('Side glazing head', RX1, RX1 + 0.07, RY0, RY1, RZ - 0.06, RZ, black)
+box('Side glazing glass', RX1 + 0.032, RX1 + 0.038, RY0, RY1, 0.05, RZ - 0.06, wglass)
 # front wall behind the camera, with a wide window: soft skylight on the island's front
 FW = (-3.0, 2.0, 0.35, 2.7)
 box('Front wall L', RX0, FW[0], RY0 - 0.25, RY0, 0, RZ, plaster)
@@ -449,7 +494,7 @@ fp_ = bpy.context.active_object; fp_.name = 'Front window portal'
 fp_.data.shape = 'RECTANGLE'; fp_.data.size = FW[1] - FW[0]; fp_.data.size_y = FW[3] - FW[2]; fp_.data.cycles.is_portal = True
 
 def window_bay(name, x0, x1, z0, z1, y, bays, transoms):
-    """Steel-framed glazing in the back wall: outer frame, mullions and transoms, no glass (it is blown out)."""
+    """Steel-framed glazing in the back wall: outer frame, mullions and transoms, and the glass."""
     t, dpt = 0.045, 0.07
     box(f'{name} frame L', x0, x0 + t, y, y + dpt, z0, z1, black)
     box(f'{name} frame R', x1 - t, x1, y, y + dpt, z0, z1, black)
@@ -460,6 +505,7 @@ def window_bay(name, x0, x1, z0, z1, y, bays, transoms):
         box(f'{name} mullion {i}', x - 0.02, x + 0.02, y + 0.01, y + dpt - 0.01, z0, z1, black)
     for z in transoms:
         box(f'{name} transom {z}', x0, x1, y + 0.01, y + dpt - 0.01, z - 0.016, z + 0.016, black)
+    box(f'{name} glass', x0 + t, x1 - t, y + 0.032, y + 0.038, z0 + t, z1 - t, wglass)
     bpy.ops.object.light_add(type='AREA', location=((x0 + x1) / 2, y + 0.3, (z0 + z1) / 2), rotation=(math.radians(-90), 0, 0))
     portal = bpy.context.active_object; portal.name = f'{name} portal'
     portal.data.shape = 'RECTANGLE'; portal.data.size = x1 - x0; portal.data.size_y = z1 - z0
@@ -477,9 +523,32 @@ for x0_, x1_ in (WA, WB):
 window_bay('Window A', *WA, WZ0, WZ1, WY + 0.06, 2, (1.12, 2.1))
 window_bay('Window B', *WB, WZ0, WZ1, WY + 0.06, 2, (2.1,))
 box('Print frame', -1.28, -0.72, WY - 0.025, WY, 0.98, 1.72, black, bevel=0.003)
-print_mat = simple_mat('Print', (0.46, 0.41, 0.34), rough=0.85)
-box('Print', -1.255, -0.745, WY - 0.03, WY - 0.02, 1.005, 1.695, print_mat)
-box('Print mount', -1.215, -0.785, WY - 0.032, WY - 0.029, 1.05, 1.65, simple_mat('Print ink', (0.12, 0.10, 0.085), rough=0.9))
+# the print: an ink-wash landscape on cotton rag, three ridges fading into the distance, in a wide mat
+def ink_landscape():
+    m, n, l = new_mat('Print, ink wash')
+    p = principled(n)
+    x, z = obj_axis(n, l, 'X'), obj_axis(n, l, 'Z')
+    paper = map_range(n, l, noise(n, l, 900, 3), 0.96, 1.02)
+    col = n.new('ShaderNodeCombineColor')
+    for i, v in enumerate((0.80, 0.77, 0.70)): l.new(math_node(n, l, 'MULTIPLY', paper, v), col.inputs[i])
+    out_c = col.outputs['Color']
+    for base, amp, freq, tone, seed in ((1.43, 0.09, 6.0, 0.62, 3.1), (1.33, 0.07, 9.0, 0.38, 7.7), (1.2, 0.05, 13.0, 0.14, 1.9)):
+        nz = n.new('ShaderNodeTexNoise'); nz.noise_dimensions = '1D'
+        nz.inputs['Scale'].default_value = freq; nz.inputs['Detail'].default_value = 4; nz.inputs['Roughness'].default_value = 0.55
+        l.new(math_node(n, l, 'ADD', x, seed), nz.inputs['W'])
+        ridge = math_node(n, l, 'ADD', base, math_node(n, l, 'MULTIPLY', math_node(n, l, 'SUBTRACT', nz.outputs['Fac'], 0.5), amp * 2))
+        below = math_node(n, l, 'SUBTRACT', 1.0, band(n, l, math_node(n, l, 'SUBTRACT', z, ridge), -0.002, 0.003))
+        fade = band(n, l, math_node(n, l, 'SUBTRACT', ridge, z), 0.0, 0.12)   # wash pales away under each ridge
+        dens = math_node(n, l, 'MULTIPLY', below, fmix(n, l, 1.0, 0.35, fade))
+        dens = math_node(n, l, 'MULTIPLY', dens, map_range(n, l, noise(n, l, 40, 4, 0.6), 0.75, 1.0))
+        out_c = mix(n, l, out_c, (tone * 0.95, tone * 0.93, tone * 0.9), 'MIX', dens)
+    seal = math_node(n, l, 'MULTIPLY', band(n, l, x, -0.83, -0.829), math_node(n, l, 'SUBTRACT', 1.0, band(n, l, x, -0.816, -0.815)))
+    seal = math_node(n, l, 'MULTIPLY', seal, math_node(n, l, 'MULTIPLY', band(n, l, z, 1.08, 1.081), math_node(n, l, 'SUBTRACT', 1.0, band(n, l, z, 1.094, 1.095))))
+    l.new(mix(n, l, out_c, (0.42, 0.06, 0.03), 'MIX', seal), p.inputs['Base Color'])
+    p.inputs['Roughness'].default_value = 0.9
+    return m
+box('Print', -1.255, -0.745, WY - 0.03, WY - 0.02, 1.005, 1.695, simple_mat('Print mat', (0.78, 0.76, 0.71), rough=0.9))
+box('Print mount', -1.215, -0.785, WY - 0.032, WY - 0.029, 1.05, 1.65, ink_landscape())
 # cabinetry run on the right
 CX0, CX1 = 0.92, 1.7      # stops short so it never shades the island from the low sun
 box('Tall cabinets', CX0, CX1, WY - 0.62, WY, 0.0, 2.55, walnut_dark, bevel=0.002)
@@ -500,7 +569,7 @@ sun.data.color = (1.0, 0.8, 0.58)
 bpy.ops.object.light_add(type='AREA', location=(-0.5, RY0 + 0.6, 1.5), rotation=(math.radians(90), 0, 0))
 fill = bpy.context.active_object; fill.name = 'Bounce from the room'
 fill.data.shape = 'RECTANGLE'; fill.data.size = 4.6; fill.data.size_y = 2.2
-fill.data.energy = 70; fill.data.color = (1.0, 0.96, 0.9)   # enough to read the shade side, not to flatten it
+fill.data.energy = 140; fill.data.color = (1.0, 0.96, 0.9)  # enough to read the shade side, not to flatten it
 fill.visible_camera = False
 
 
@@ -1040,12 +1109,11 @@ bo = run_top.modifiers.new('sink', 'BOOLEAN'); bo.object = cut; bo.operation = '
 apply_all(run_top); bpy.data.objects.remove(cut)
 unfold_uv(run_top, noir_uv, TOP_Z)
 smooth_by_angle(run_top)
-# backsplash and its ledge, which is also the window sill: the veins fold up from the counter onto them
-bs = box('Backsplash', RX0, RX0 + 0.02, RUN_Y0, RUN_Y1, TOP_Z, TOP_Z + 0.6, noir)
+# full-height backsplash up to the wall cabinets: the veins fold up from the counter onto it
+BS_H = 0.6
+bs = box('Backsplash', RX0, RX0 + 0.02, RUN_Y0, RUN_Y1, TOP_Z, TOP_Z + BS_H, noir)
 unfold_uv(bs, noir_uv, TOP_Z)
-ledge = box('Backsplash ledge', RX0, RX0 + 0.07, RUN_Y0, RUN_Y1, TOP_Z + 0.6, WIN_Z[0], noir)
-unfold_uv(ledge, lambda x, y: noir_uv(x - 0.64, y), WIN_Z[0])
-for o in (run_top, bs, ledge):
+for o in (run_top, bs):
     e = o.modifiers.new('ease', 'BEVEL'); e.width = 0.0018; e.segments = 3; e.limit_method = 'ANGLE'
 
 # brushed stainless basin under the opening; the stone overhangs it by a few millimetres
@@ -1117,21 +1185,50 @@ gl.new(math_node(gn, gl, 'ADD', math_node(gn, gl, 'MULTIPLY', gprint, 0.22), mat
 gp.inputs['IOR'].default_value = 1.52
 box('Cooktop', COOK[0] - 0.255, COOK[0] + 0.255, COOK[1] - 0.29, COOK[1] + 0.29, TOP_Z, TOP_Z + 0.005, glass, bevel=0.0015)
 
-def window_side(name, y0, y1, z0, z1, x, bays):
-    """Steel-framed window in the left wall (the frames sit 60 mm into the reveal), no glass."""
-    t, dpt = 0.045, 0.07
-    box(f'{name} frame front', x - dpt, x, y0, y0 + t, z0, z1, black)
-    box(f'{name} frame back', x - dpt, x, y1 - t, y1, z0, z1, black)
-    box(f'{name} frame sill', x - dpt, x, y0, y1, z0, z0 + t, black)
-    box(f'{name} frame head', x - dpt, x, y0, y1, z1 - t, z1, black)
-    for i in range(1, bays):
-        y = y0 + i * (y1 - y0) / bays
-        box(f'{name} mullion {i}', x - dpt + 0.01, x - 0.01, y - 0.02, y + 0.02, z0, z1, black)
-    bpy.ops.object.light_add(type='AREA', location=(x - 0.3, (y0 + y1) / 2, (z0 + z1) / 2), rotation=(0, math.radians(-90), 0))
-    portal = bpy.context.active_object; portal.name = f'{name} portal'
-    portal.data.shape = 'RECTANGLE'; portal.data.size = z1 - z0; portal.data.size_y = y1 - y0
-    portal.data.cycles.is_portal = True
-window_side('Window C', WIN_Y[0], WIN_Y[1], WIN_Z[0], WIN_Z[1], RX0 - 0.06, 2)
+# wall cabinets: walnut to the ceiling, in two tiers of slab doors over the base units' divisions, with an
+# integrated hood over the cooktop that stands 160 mm proud. Handleless: the doors drop 25 mm below the
+# carcass as a finger pull, which also hides the warm LED strip that washes the backsplash.
+UZ0 = TOP_Z + BS_H                # they sit on the backsplash
+UZ1 = RZ - 0.012                  # a 12 mm shadow gap under the ceiling
+UD, LIP = 0.36, 0.025             # 340 mm carcass + 20 mm doors
+UT = UZ0 + 0.92                   # where the two tiers of doors meet
+HOOD_Y, HOOD_D = (0.85, 2.05), 0.52
+HOOD_Z0 = TOP_Z + 0.7             # 700 mm over the induction top
+LED = (1.0, 0.8, 0.6)             # 3000 K strip
+for ya, yb in ((RUN_Y0 + 0.02, HOOD_Y[0]), (HOOD_Y[1], RUN_Y1 - 0.02)):
+    planar_uv(box('Upper carcass', RX0, RX0 + UD - 0.02, ya, yb, UZ0, UZ1, walnut_dark), 1, 2, scale=0.7)
+for nm, ya, yb in (('front', RUN_Y0, RUN_Y0 + 0.02), ('back', RUN_Y1 - 0.02, RUN_Y1)):
+    planar_uv(box(f'Upper end panel {nm}', RX0, RX0 + UD, ya, yb, UZ0 - LIP, UZ1, walnut_dark, bevel=0.0015), 2, 0, scale=0.7, off=(0.6, 0.2))
+U_SECT = [(RUN_Y0 + 0.02, -1.55, 2), (-1.55, -0.75, 2), (-0.75, 0.05, 2), (0.05, HOOD_Y[0], 2), (HOOD_Y[1], RUN_Y1 - 0.02, 1)]
+for ya, yb, cols in U_SECT:
+    w = (yb - ya) / cols
+    for c in range(cols):
+        for za, zb in ((UZ0 - LIP, UT), (UT, UZ1)):
+            o = box(f'Upper door {k}', RX0 + UD - 0.02, RX0 + UD, ya + c * w + GAP / 2, ya + (c + 1) * w - GAP / 2,
+                    za + GAP / 2, zb - GAP / 2, walnut_dark, bevel=0.0012)
+            planar_uv(o, 2, 1, scale=0.7, off=(rng.uniform(0, 1), rng.uniform(0, 1)))
+            k += 1
+# the hood: a walnut box with its veneer running across, a brushed brass band along its lower edge, and the
+# black extractor face underneath; the stone backsplash carries on up behind it
+hood = box('Hood', RX0, RX0 + HOOD_D, HOOD_Y[0], HOOD_Y[1], HOOD_Z0 + 0.012, UZ1, walnut_dark, bevel=0.0015)
+planar_uv(hood, 1, 2, scale=0.7, off=(0.35, 0.15))
+box('Hood extractor', RX0 + 0.02, RX0 + HOOD_D - 0.01, HOOD_Y[0] + 0.01, HOOD_Y[1] - 0.01, HOOD_Z0, HOOD_Z0 + 0.012, black)
+box('Hood band', RX0 + HOOD_D - 0.001, RX0 + HOOD_D + 0.003, HOOD_Y[0] + 0.0015, HOOD_Y[1] - 0.0015, HOOD_Z0 + 0.012, HOOD_Z0 + 0.04, fbrass, bevel=0.0008)
+bsh = box('Backsplash behind hood', RX0, RX0 + 0.02, HOOD_Y[0], HOOD_Y[1], TOP_Z + BS_H, HOOD_Z0, noir)
+unfold_uv(bsh, noir_uv, TOP_Z)
+
+def strip_light(name, x, ya, yb, z, watts_per_m, width=0.015, color=LED):
+    """A diffused LED strip facing down: invisible to the camera, but seen in the polished stone."""
+    bpy.ops.object.light_add(type='AREA', location=(x, (ya + yb) / 2, z))
+    o = bpy.context.active_object; o.name = name
+    o.data.shape = 'RECTANGLE'; o.data.size = width; o.data.size_y = yb - ya
+    o.data.energy = watts_per_m * (yb - ya); o.data.color = color
+    o.visible_camera = False
+    return o
+LED_W = 15.0
+for ya, yb in ((RUN_Y0 + 0.04, HOOD_Y[0] - 0.02), (HOOD_Y[1] + 0.02, RUN_Y1 - 0.04)):
+    strip_light('Under-cabinet LED', RX0 + UD - 0.05, ya, yb, UZ0 - 0.004, LED_W)
+strip_light('Hood light', RX0 + HOOD_D - 0.12, HOOD_Y[0] + 0.1, HOOD_Y[1] - 0.1, HOOD_Z0 - 0.002, LED_W * 0.8, width=0.05)
 
 # by the sink: a stoneware soap pump, a worn walnut board leaning on the backsplash, a lidded crock
 pump_glaze = stoneware('Stoneware pump', (0.7, 0.665, 0.6), (0.56, 0.44, 0.32), 0.17, 0.003, speck=0.04)
@@ -1165,12 +1262,45 @@ for x in (CX0 + 0.6 - 0.035, CX0 + 0.6 + 0.035):
         tube(f'Pantry pull stand {x:.3f} {z}', [(x, WY - 0.62, z), (x, WY - 0.645, z)], 0.005, fbrass)
     tube(f'Pantry pull {x:.3f}', [(x, WY - 0.645, 0.93), (x, WY - 0.645, 1.57)], 0.0065, fbrass)
 
-# recessed downlights (off: it is daytime). Named "Ceiling ..." so they hide with the ceiling from above.
+# recessed downlights, on and dimmed low, as they are in most kitchens by day: warm pools on the counters,
+# soft scallops down the cabinet fronts. The meshes are named "Ceiling ..." so they hide with the ceiling
+# from above (render_move.py); their light is there in every frame.
 trim = simple_mat('Downlight trim', (0.78, 0.77, 0.75), rough=0.35)
-lens = simple_mat('Downlight lens', (0.2, 0.2, 0.2), rough=0.15)
-for i, (x, y) in enumerate([(-2.95, -1.7), (-2.95, -0.35), (-2.95, 1.0), (-2.95, 2.1), (-0.95, -1.5), (0.55, -1.5), (-0.95, 1.5), (0.55, 1.5)]):
+DL = (1.0, 0.76, 0.52)            # 2700 K
+lens, ln_, ll_ = new_mat('Downlight lens')
+lpr = principled(ln_); lpr.inputs['Base Color'].default_value = (0.8, 0.8, 0.8, 1)
+lpr.inputs['Emission Color'].default_value = (*DL, 1); lpr.inputs['Emission Strength'].default_value = 40
+DL_W = 35.0
+for i, (x, y) in enumerate([(-2.6, -1.7), (-2.6, -0.35), (-2.6, 0.95), (-2.6, 2.1), (-0.95, -1.5), (0.55, -1.5), (-0.95, 1.5), (0.55, 1.5)]):
     for o in (cyl(f'Ceiling light {i}', x, y, RZ - 0.003, RZ, 0.046, trim), cyl(f'Ceiling light lens {i}', x, y, RZ - 0.0034, RZ - 0.003, 0.033, lens)):
         o.visible_camera = False
+    bpy.ops.object.light_add(type='SPOT', location=(x, y, RZ - 0.006))
+    sp = bpy.context.active_object; sp.name = f'Downlight {i}'
+    sp.data.energy = DL_W; sp.data.color = DL; sp.data.shadow_soft_size = 0.03
+    sp.data.spot_size = math.radians(70); sp.data.spot_blend = 0.65
+    sp.visible_camera = False
+
+# a small zebra haworthia in a white pot at the back of the run, and a syngonium at the front end
+for asset, pos, s, rz in (('potted_plant_04', (RX0 + 0.21, 2.12), 1.0, 0.6), ('potted_plant_02', (RX0 + 0.25, -2.16), 0.55, 2.1)):
+    parts = import_gltf(os.path.join(A, 'props', asset, f'{asset}_2k.gltf'))
+    rig = link(bpy.data.objects.new(asset, None))      # moves the pot, soil and plant as one
+    for o in parts:
+        o.parent = rig; o.matrix_parent_inverse = rig.matrix_world.inverted()
+    rig.scale = (s, s, s); rig.rotation_euler.z = rz
+    bpy.context.view_layer.update()
+    lo = [min((o.matrix_world @ v.co)[i] for o in parts for v in o.data.vertices) for i in range(3)]
+    hi = [max((o.matrix_world @ v.co)[i] for o in parts for v in o.data.vertices) for i in range(3)]
+    rig.location = (pos[0] - (lo[0] + hi[0]) / 2, pos[1] - (lo[1] + hi[1]) / 2, TOP_Z - lo[2] - 0.0002)
+    bpy.context.view_layer.update()
+    print('PLANT', asset, len(parts), 'parts, size', tuple(round(h - l_, 3) for l_, h in zip(lo, hi)))
+
+# painted skirting, 80 mm, where the walls meet the floor in view
+skirt = simple_mat('Skirting, satin paint', (0.5, 0.47, 0.42), rough=0.42)
+for x0_, x1_ in ((RX0, WA[0]), (WA[1], WB[0]), (WB[1], CX0), (CX1, RX1)):
+    box('Skirting back', x0_, x1_, WY - 0.012, WY, 0.0, 0.08, skirt, bevel=0.002)
+for y0_, y1_ in ((RY0, RUN_Y0), (RUN_Y1, WY - 0.012)):
+    box('Skirting left', RX0, RX0 + 0.012, y0_, y1_, 0.0, 0.08, skirt, bevel=0.002)
+box('Skirting front', RX0, RX1, RY0, RY0 + 0.012, 0.0, 0.08, skirt, bevel=0.002)
 
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(SRC, 'scene.blend'))
 print('SCENE_OK', len(scene.objects), 'objects')
