@@ -105,6 +105,9 @@
     el, a: +el.dataset.in, b: +el.dataset.out,
     parts: [...el.querySelectorAll('[data-part]')], hero: el.classList.contains('beat--hero'),
   }));
+  const coda = scene.querySelector('[data-coda]'), codaMark = coda.querySelector('.coda-mark');
+  const kitchenStill = scene.querySelector('.scene-layer--kitchen .scene-still');
+  const closingBeat = scene.querySelector('.beat--whole');
 
   // Choreography (scene progress 0..1). One continuous camera move in three legs (render_move.py):
   // [start, end, first frame, last frame]. Leg 1 starts with the first scroll: the plan still hands over to
@@ -118,6 +121,17 @@
   const LINES = [0.27, 0.3067, 0.353, 0.375], LABELS = [0.29, 0.3267, 0.353, 0.375];
   const TAG_AT = { 119: [0.29, 0.3267, 0.353, 0.375], 191: [0.6, 0.627, 0.66, 0.683], 287: [0.933, 0.96, 2, 2] };
   const BEAT_IN = 0.035, BEAT_OUT = 0.03, PART_STAGGER = 0.01, PART_RISE = 16;
+  // The coda is extra scroll after the story (--coda in home.css), so the story keeps its timing. Over it (0..1)
+  // the kitchen's name tags step aside, the logo comes into focus while the camera eases in a touch, and it
+  // holds; once the pin lets go, it fades over the first CODA_EXIT of a screen as the next section arrives,
+  // lagging the scroll a little, and the header's logo takes over again.
+  const CODA_TAGS_OUT = [0, 0.3], CODA_IN = [0.12, 0.62], CODA_EXIT = 0.55, CODA_LAG = 0.35, CODA_PUSH = 0.025;
+  let codaShare = 0;
+  function readCoda() {
+    const cs = getComputedStyle(scene), s = parseFloat(cs.getPropertyValue('--story')), c = parseFloat(cs.getPropertyValue('--coda'));
+    codaShare = s > 0 && c > 0 ? c / (s + c) : 0;
+    coda.style.setProperty('--coda-bottom', `${closingBeat.offsetHeight}px`);   // centre the logo above the closing copy
+  }
   const inOut = (r, p) => smooth(r[0], r[1], p) * (1 - smooth(r[2], r[3], p));
   function frameAt(p) {                      // frames are spaced by camera motion; ease each leg's ends
     for (let i = LEGS.length - 1; i > 0; i--) if (p >= LEGS[i][0]) return LEGS[i][2] + smooth(LEGS[i][0], LEGS[i][1], p) * (LEGS[i][3] - LEGS[i][2]);
@@ -209,6 +223,7 @@
   let tagStop = 0, tagPos = {};
   let notePaths = [];
   function layoutNotes() {
+    readCoda();
     const W = pin.clientWidth, H = pin.clientHeight;
     const cfg = tall ? NOTES.tall : NOTES.wide;
     const dw = W / H > cfg.aspect ? W : H * cfg.aspect, dh = dw / cfg.aspect;
@@ -248,18 +263,25 @@
     label.style.transform = `translate3d(${Math.round(side === 'left' ? x : x - r.width)}px, ${Math.round(y - r.height / 2)}px, 0)`;
   }
 
-  let sceneP = -1;
+  let sceneKey = NaN, brandOff = -1;
+  function setBrandOff(v) {
+    if (v === brandOff) return;
+    brandOff = v; head.style.setProperty('--brand-off', String(v));
+  }
   function updateScene(dt) {
     const r = scene.getBoundingClientRect(), vh = innerHeight;
-    if (r.bottom < 0 || r.top > vh) return;
-    const p = clamp(-r.top / Math.max(1, r.height - vh));
+    if (r.bottom < 0 || r.top > vh) { setBrandOff(0); return; }
+    const travel = Math.max(1, r.height - vh), codaPx = r.height * codaShare, story = Math.max(1, travel - codaPx);
+    const p = clamp(-r.top / story);                                     // the camera move and its copy
+    const q = codaPx > 0 ? clamp((-r.top - story) / codaPx) : 1;          // the closing logo
+    const gone = Math.max(0, -r.top - travel);                           // px the scene has scrolled away
     const target = frameAt(p);
     curF = Math.abs(target - curF) > N / 3 ? target : damp(curF, target, 16, dt);
     if (!loadingStarted && p > 0) loadFrames();
     drawFrame(Math.round(curF));
 
-    if (p === sceneP && !needsDraw) return;
-    sceneP = p;
+    if (r.top === sceneKey && !needsDraw) return;
+    sceneKey = r.top;
     setStyle(planStill, 'opacity', canvasReady ? String(1 - smooth(PLAN_OUT[0], PLAN_OUT[1], p)) : '1');
     for (const h of holds) {
       // a still leaves only once frames are drawing; without them (Save-Data, slow link) it stays until the next one
@@ -300,7 +322,7 @@
     Object.values(noteLabels).forEach((l) => setStyle(l, 'opacity', String(lb)));
 
     const stop = p < LEGS[1][0] ? 119 : p < LEGS[2][0] ? 191 : 287;
-    const tv = inOut(TAG_AT[stop], p);
+    const tv = inOut(TAG_AT[stop], p) * (stop === 287 ? 1 - smooth(CODA_TAGS_OUT[0], CODA_TAGS_OUT[1], q) : 1);
     for (const [name, el] of Object.entries(tagEls)) {
       const at = tagPos[stop] && tagPos[stop][name];
       if (at && stop !== tagStop) {
@@ -310,6 +332,15 @@
       setStyle(el, 'opacity', at ? tv.toFixed(3) : '0');
     }
     tagStop = stop;
+
+    const lin = smooth(CODA_IN[0], CODA_IN[1], q), lv = lin * (1 - smooth(0, CODA_EXIT * vh, gone));
+    setStyle(coda, 'opacity', lv.toFixed(3));
+    if (lv > 0) {
+      setStyle(codaMark, 'transform', `translate3d(0, ${(gone * CODA_LAG).toFixed(1)}px, 0) scale(${(0.94 + 0.06 * lin).toFixed(4)})`);
+      setStyle(codaMark, 'filter', lin < 0.999 ? `blur(${((1 - lin) * 9).toFixed(2)}px)` : 'none');
+    }
+    setStyle(kitchenStill, 'transform', q > 0 ? `scale(${(1 + CODA_PUSH * smooth(0, 1, q)).toFixed(4)})` : '');
+    setBrandOff(Math.round(lv * 100) / 100);
   }
 
   /* ---------- scrubbed statement ---------- */
@@ -433,7 +464,7 @@
   function onResize() {
     const nowTall = isTall();
     if (MOTION) {
-      if (nowTall !== tall) { tall = nowTall; sizeCanvas(); if (loadingStarted) loadFrames(); } else sizeCanvas(); layoutNotes(); half = 0; sceneP = -1;
+      if (nowTall !== tall) { tall = nowTall; sizeCanvas(); if (loadingStarted) loadFrames(); } else sizeCanvas(); layoutNotes(); half = 0; sceneKey = NaN;
     }
   }
   let rz = 0;

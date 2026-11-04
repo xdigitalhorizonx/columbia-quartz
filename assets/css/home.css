@@ -128,6 +128,7 @@ em { font-style: italic; }
 .brand { position: relative; display: block; width: 104px; height: 78px; margin-right: auto; }
 .brand-logo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; transition: opacity .6s; }
 .brand-logo--ink { opacity: 0; }
+.brand-logo--light { opacity: calc(1 - var(--brand-off, 0)); }   /* steps aside while the scene's closing logo shows */
 .site-head.is-paper .brand-logo--ink { opacity: 1; }
 .site-head.is-paper .brand-logo--light { opacity: 0; }
 
@@ -270,7 +271,8 @@ html:not(.motion) .notes { display: none; }
 html:not(.motion) .scroll-cue { display: none; }
 
 /* ---------- pinned scene (motion only) ---------- */
-html.motion .scene { height: 440vh; }
+/* --story is the camera move and its copy; --coda is the closing logo after it (both in vh, read by home.js) */
+html.motion .scene { --story: 440; --coda: 60; height: calc((var(--story) + var(--coda)) * 1vh); }
 html.motion .scene-pin { position: sticky; top: 0; height: 100svh; min-height: 520px; }
 html.motion .scene-layer { position: absolute; inset: 0; height: auto; min-height: 0; }
 html.motion .scene-canvas { display: block; }
@@ -289,6 +291,20 @@ html.motion .scene-veil {
     linear-gradient(180deg, rgba(10, 9, 7, .6) 0%, rgba(10, 9, 7, 0) 22%);
   opacity: var(--veil, 0);
 }
+/* closing brand moment: once the camera has pulled back, the logo comes into focus over the kitchen, centred
+   in the room between the header and the closing copy (--coda-bottom, set by home.js), on a soft pool of
+   shade so the cream lettering holds over the bright windows; it fades as the next section arrives */
+.coda { display: none; }
+html.motion .coda {
+  display: flex; align-items: center; justify-content: center; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  padding: var(--head-h) var(--gutter) var(--coda-bottom, 30svh); opacity: 0; will-change: opacity;
+}
+html.motion .coda-mark { position: relative; isolation: isolate; will-change: transform, filter; }
+html.motion .coda-mark::before {
+  content: ""; position: absolute; inset: -62% -52%; z-index: -1;
+  background: radial-gradient(closest-side, rgba(10, 9, 7, .6), rgba(10, 9, 7, .42) 42%, rgba(10, 9, 7, .16) 74%, rgba(10, 9, 7, 0));
+}
+.coda-logo { display: block; width: clamp(190px, min(25vw, 36svh), 400px); height: auto; }
 html.motion [data-beat] [data-part], html.motion .beat--hero { will-change: transform, opacity; }
 html.motion .beat--band [data-part] { opacity: 0; }
 html.motion .beat a, html.motion .beat button { pointer-events: auto; }
@@ -503,7 +519,8 @@ html.paused *, html.paused *::before, html.paused *::after { animation-play-stat
   .beat--hero .hero-actions { margin-top: 26px; }
   .plan-veil { display: none; }
   .scene-layer--plan::after { content: ""; position: absolute; inset: 25% 0 0; background: linear-gradient(180deg, rgba(10, 9, 7, 0), rgba(10, 9, 7, .8) 45%, rgba(10, 9, 7, .92)); }
-  html.motion .scene { height: 420vh; }
+  html.motion .scene { --story: 420; }
+  .coda-logo { width: clamp(170px, 54vw, 280px); }
   html.motion .scene-layer--plan::after { display: none; }
   html.motion .scene-veil { opacity: var(--veil-tall, 1); background: linear-gradient(0deg, rgba(10, 9, 7, .92) 0%, rgba(10, 9, 7, .82) 34%, rgba(10, 9, 7, .45) 52%, rgba(10, 9, 7, 0) 68%), linear-gradient(180deg, rgba(10, 9, 7, .55) 0%, rgba(10, 9, 7, 0) 18%); }
   .beat--band { grid-template-columns: 1fr; padding-bottom: clamp(30px, 5vh, 56px); }

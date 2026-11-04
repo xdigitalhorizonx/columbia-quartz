@@ -14,6 +14,9 @@ name tags.
 Six numbered story beats ride along in the lower band over a shared dark veil (island, edge, durability,
 sink run, pairing, whole kitchen); their scroll windows are the `data-in` / `data-out` values in
 `index.html`. On phones the edge and whole-kitchen beats drop their paragraph so the callouts stay clear.
+After the pull-back, a short coda gives the brand its moment: the name tags step aside, the Columbia
+Quartz logo comes into focus over the kitchen (centred above the closing copy, on desktop and phones),
+and it fades as the next section scrolls in while the header's logo returns.
 How it was made and how to rebuild it: [`tools/scene/README.md`](tools/scene/README.md).
 
 ## Motion

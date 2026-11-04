@@ -79,3 +79,6 @@ sharp 4K render; each stop's frame is the same picture as its still, so the hand
   these lines to `renders/render.log`; copy them into `NOTES` in `home.js`.
 - Timing: `LEGS` and the in/out ranges next to it in `home.js`, the finale's `data-in`/`data-out` and the
   `data-hold` ranges in `index.html`.
+- Closing logo: extra scroll after the story (`--coda` on `.scene` in `home.css`, in vh; the story's own
+  length is `--story`), so the story's timing never changes with it. Its choreography is `CODA_*` in
+  `home.js`.
