@@ -138,20 +138,15 @@
     return smooth(LEGS[0][0], LEGS[0][1], p) * LEGS[0][3];
   }
 
-  // Frames arrive as encoded blobs, leg by leg. A small window around the playhead is decoded off the main
-  // thread into ImageBitmaps at their own size (a resize in the decoder costs more than the decode itself; the
-  // GPU scales them as it draws). The window leans the way the scroll is going, two decodes at a time, and on a
-  // fast scroll it strides at the playhead's pace per refresh, so the decoder only prepares frames that will be
-  // on screen, a few refreshes before the playhead gets there.
+  // Frames arrive as encoded blobs, leg by leg. Only a small window around the playhead is decoded, off the
+  // main thread, into canvas-sized ImageBitmaps, so a draw is a plain blit.
   const N = +canvas.dataset.frames;
   const SRC = { wide: canvas.dataset.sizeWide.split('x').map(Number), tall: canvas.dataset.sizeTall.split('x').map(Number) };
-  const AHEAD = 8, BEHIND = 3, MAX_DECODES = 2, MAX_STRIDE = 6, MAX_BITMAPS = 16;   // 16 full-size frames: ~130 MB at 1080p
-  const LEAD = 2;                                 // refreshes a decode takes to land, roughly
-  let stride = 1, pace = 0;                       // frames the playhead moves per refresh (smoothed)
+  const WINDOW = 7, MAX_DECODES = 1;   // one decode at a time: parallel decodes hitch the main thread on a fast scroll
   const SAVE_DATA = !!(navigator.connection && navigator.connection.saveData);   // keep the stills, skip the sequence
   let tall = isTall();
   let blobs = [], bitmaps = new Map(), decoding = new Set(), loadGen = 0, bmpGen = 0, loadingStarted = false;
-  let curF = 0, dir = 1, shownF = -1, lastKey = -1, needsDraw = true, canvasReady = false, cw = 0, ch = 0, crop = [0, 0, 1, 1];
+  let curF = 0, lastDrawn = -1, needsDraw = true, canvasReady = false, cw = 0, ch = 0, crop = [0, 0, 1, 1];
 
   function frameOrder() {                    // the stops first, then leg by leg, each coarse to fine
     const order = [], seen = new Set();
@@ -163,13 +158,13 @@
   function loadFrames() {
     loadingStarted = true;
     if (SAVE_DATA) return;
-    const gen = ++loadGen, base = tall ? canvas.dataset.framesTall : canvas.dataset.framesWide;
+    const gen = ++loadGen, dir = tall ? canvas.dataset.framesTall : canvas.dataset.framesWide;
     blobs = new Array(N); dropBitmaps();
     const queue = frameOrder(); let active = 0;
     const pump = () => {
       while (active < 6 && queue.length) {
         const i = queue.shift(); active++;
-        fetch(`${base}${String(i).padStart(3, '0')}.webp?v=${canvas.dataset.rev}`).then((r) => (r.ok ? r.blob() : null)).then((b) => {
+        fetch(`${dir}${String(i).padStart(3, '0')}.webp?v=${canvas.dataset.rev}`).then((r) => (r.ok ? r.blob() : null)).then((b) => {
           if (gen === loadGen && b) blobs[i] = b;
         }).catch(() => {}).finally(() => { active--; if (gen === loadGen) pump(); });
       }
@@ -178,62 +173,37 @@
   }
   function dropBitmaps() {
     bmpGen++; bitmaps.forEach((b) => b.close()); bitmaps.clear(); decoding.clear();
-    shownF = -1; lastKey = -1; needsDraw = true; canvasReady = false;
+    lastDrawn = -1; needsDraw = true; canvasReady = false;
   }
   function sizeCanvas() {
     const w = pin.clientWidth, h = pin.clientHeight, [iw, ih] = tall ? SRC.tall : SRC.wide;
     const s = Math.max(w / iw, h / ih);                         // CSS px per source px (cover)
     const scale = Math.min(window.devicePixelRatio || 1, 2, 1 / s); // never upsample in the backing store
     cw = Math.round(w * scale); ch = Math.round(h * scale);
-    canvas.width = cw; canvas.height = ch;                      // (this resets the context's state)
-    ctx.imageSmoothingQuality = 'high';
+    canvas.width = cw; canvas.height = ch;
     const sw = w / s, sh = h / s; crop = [(iw - sw) / 2, (ih - sh) / 2, sw, sh];
     dropBitmaps();
   }
   function decodeAround(center) {
     const g = bmpGen;
-    // First where the playhead will be by the time a decode lands (LEAD refreshes on), then on ahead along a grid
-    // of the playhead's stride (fixed to frame numbers, so it holds still while the playhead moves along it);
-    // then the playhead's own frame and its neighbour (for the blend), and a few behind for a change of heart.
-    const lead = Math.round(pace * LEAD), from = center + lead * dir;
-    const g0 = stride > 1 ? (dir > 0 ? Math.ceil(from / stride) : Math.floor(from / stride)) * stride : from;
-    for (let k = 0; k < AHEAD + 2 + BEHIND && decoding.size < MAX_DECODES; k++) {
-      const i = k < AHEAD ? g0 + k * stride * dir : k === AHEAD ? center : k === AHEAD + 1 ? center + dir : center - (k - AHEAD - 1) * dir;
-      if (i < 0 || i >= N || !blobs[i] || bitmaps.has(i) || decoding.has(i)) continue;
-      decoding.add(i);
-      createImageBitmap(blobs[i])
-        .then((bmp) => { if (g !== bmpGen) return bmp.close(); bitmaps.set(i, bmp); needsDraw = true; })
-        .catch(() => {}).finally(() => decoding.delete(i));
+    for (let d = 0; d <= WINDOW && decoding.size < MAX_DECODES; d++) {
+      for (const i of d ? [center + d, center - d] : [center]) {
+        if (i < 0 || i >= N || !blobs[i] || bitmaps.has(i) || decoding.has(i) || decoding.size >= MAX_DECODES) continue;
+        decoding.add(i);
+        createImageBitmap(blobs[i], crop[0], crop[1], crop[2], crop[3], { resizeWidth: cw, resizeHeight: ch, resizeQuality: 'high' })
+          .then((bmp) => { if (g !== bmpGen) return bmp.close(); bitmaps.set(i, bmp); needsDraw = true; })
+          .catch(() => {}).finally(() => decoding.delete(i));
+      }
     }
-    // keep what is in reach, and never more than MAX_BITMAPS (the farthest go first)
-    const reach = (i) => { const a = (i - center) * dir; return a < 0 ? -a * 3 : a / stride; };
-    bitmaps.forEach((b, i) => { const a = (i - center) * dir; if (a > lead + (AHEAD + 1) * stride + 2 || a < -BEHIND - 1) { b.close(); bitmaps.delete(i); } });
-    if (bitmaps.size > MAX_BITMAPS) {
-      [...bitmaps.keys()].sort((x, y) => reach(y) - reach(x)).slice(0, bitmaps.size - MAX_BITMAPS)
-        .forEach((i) => { bitmaps.get(i).close(); bitmaps.delete(i); });
-    }
+    bitmaps.forEach((b, i) => { if (Math.abs(i - center) > WINDOW + 2) { b.close(); bitmaps.delete(i); } });
   }
-  const blit = (bmp) => ctx.drawImage(bmp, crop[0], crop[1], crop[2], crop[3], 0, 0, cw, ch);
-  // Draws the playhead f (fractional). Between two decoded neighbours the later one is blended over the earlier by
-  // how far f is between them, so a slow scroll glides instead of stepping; otherwise the nearest decoded frame.
-  function drawFrame(f) {
-    const i0 = Math.min(N - 1, Math.floor(f)), i1 = Math.min(N - 1, i0 + 1);
-    const a = Math.round((f - i0) * 24) / 24;                   // 24 blend steps per frame: plenty, and it settles
-    decodeAround(Math.round(f));
-    const b0 = bitmaps.get(i0), b1 = bitmaps.get(i1);
-    if (b0 && (a === 0 || i1 === i0)) return show(i0, () => blit(b0));
-    if (b1 && a === 1) return show(i1, () => blit(b1));
-    if (b0 && b1) return show(i0 + a, () => { blit(b0); ctx.globalAlpha = a; blit(b1); ctx.globalAlpha = 1; });
-    const c = Math.round(f);
-    for (let d = 0; d < N; d++) {
-      if (bitmaps.has(c - d)) return show(c - d, () => blit(bitmaps.get(c - d)));
-      if (bitmaps.has(c + d)) return show(c + d, () => blit(bitmaps.get(c + d)));
-    }
-  }
-  function show(key, paint) {
-    if (key === lastKey && !needsDraw) return;
-    paint();
-    shownF = lastKey = key; needsDraw = false; canvasReady = true;
+  function drawFrame(idx) {
+    decodeAround(idx);
+    let j = -1;
+    for (let d = 0; d < N && j < 0; d++) { if (bitmaps.has(idx - d)) j = idx - d; else if (bitmaps.has(idx + d)) j = idx + d; }
+    if (j < 0 || (j === lastDrawn && !needsDraw)) return;
+    ctx.drawImage(bitmaps.get(j), 0, 0);
+    lastDrawn = j; needsDraw = false; canvasReady = true;
   }
 
   /* annotation callouts and name tags, in fractions of the hold frames (16:9 wide, 9:16 tall);
@@ -293,7 +263,7 @@
     label.style.transform = `translate3d(${Math.round(side === 'left' ? x : x - r.width)}px, ${Math.round(y - r.height / 2)}px, 0)`;
   }
 
-  let sceneKey = NaN, brandOff = -1, lastP = -1, stillFor = 0;
+  let sceneKey = NaN, brandOff = -1;
   function setBrandOff(v) {
     if (v === brandOff) return;
     brandOff = v; head.style.setProperty('--brand-off', String(v));
@@ -305,16 +275,10 @@
     const p = clamp(-r.top / story);                                     // the camera move and its copy
     const q = codaPx > 0 ? clamp((-r.top - story) / codaPx) : 1;          // the closing logo
     const gone = Math.max(0, -r.top - travel);                           // px the scene has scrolled away
-    // once the scroll has rested a moment, ease onto the nearest whole frame, so a stop never holds a blend
-    stillFor = p === lastP ? stillFor + dt : 0; lastP = p;
-    const target = stillFor > 0.15 ? Math.round(frameAt(p)) : frameAt(p);
-    if (Math.abs(target - curF) > 0.25) dir = target > curF ? 1 : -1;
-    const prevF = curF;
+    const target = frameAt(p);
     curF = Math.abs(target - curF) > N / 3 ? target : damp(curF, target, 16, dt);
-    pace = damp(pace, Math.min(Math.abs(curF - prevF), MAX_STRIDE), 12, dt);
-    stride = Math.max(1, Math.min(MAX_STRIDE, Math.round(pace)));
     if (!loadingStarted && p > 0) loadFrames();
-    drawFrame(curF);
+    drawFrame(Math.round(curF));
 
     if (r.top === sceneKey && !needsDraw) return;
     sceneKey = r.top;

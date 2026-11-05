@@ -300,7 +300,6 @@ html.motion .coda {
   padding: var(--head-h) var(--gutter) var(--coda-bottom, 30svh); opacity: 0; will-change: opacity;
 }
 html.motion .coda-mark { position: relative; isolation: isolate; will-change: transform, filter; }
-html.motion .scene-layer--kitchen .scene-still { will-change: transform; }   /* the coda's push-in scales a layer, never repaints the 4K still */
 html.motion .coda-mark::before {
   content: ""; position: absolute; inset: -62% -52%; z-index: -1;
   background: radial-gradient(closest-side, rgba(10, 9, 7, .6), rgba(10, 9, 7, .42) 42%, rgba(10, 9, 7, .16) 74%, rgba(10, 9, 7, 0));

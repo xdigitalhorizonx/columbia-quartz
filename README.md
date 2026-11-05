@@ -31,10 +31,6 @@ velocity marquee and the header. Lenis (`assets/vendor/`) smooths wheel scrollin
 - Phones use their own 9:16 render of the move (about 8.8 MB) instead of the 16:9 set (20.1 MB).
 - Frames load after the page's `load` event, leg by leg and coarse to fine within each, so scrubbing works
   before every frame has arrived. The sink and kitchen stills load one leg before they are needed.
-- Smoothness: frames are decoded at their own size (the GPU scales them as they are drawn), two at a time,
-  starting where the playhead will be when the decode lands and striding at its pace, so the decoder only
-  prepares frames that will be on screen. Neighbouring frames are blended by how far the playhead is
-  between them, so slow scrolls glide; when the scroll rests, it settles on a whole frame.
 
 ## Inspirations page
 
